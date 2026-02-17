@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel - Nacho Iglesias</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <!-- Login Screen -->
+    <div id="login-screen" class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <h1>Panel de Control</h1>
+                <p>Ingresa tus credenciales</p>
+            </div>
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" placeholder="tu@email.com" required
+                        autocomplete="email">
+                </div>
+                <div class="form-group">
+                    <label for="password">Contraseña</label>
+                    <input type="password" id="password" name="password" placeholder="••••••••" required
+                        autocomplete="current-password">
+                </div>
+                <div id="login-error" class="error-message" role="alert" aria-live="polite"></div>
+                <button type="submit" class="btn-primary">Iniciar Sesión</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <p>Cargando datos...</p>
+    </div>
+
+    <!-- API Error Message -->
+    <div id="api-error" class="api-error" role="alert" aria-live="polite"></div>
+
+    <!-- Dashboard -->
+    <div id="dashboard" class="dashboard-container" style="display: none;">
+        <!-- Topbar -->
+        <header class="topbar">
+            <div class="topbar-content">
+                <h1 class="topbar-title">Panel</h1>
+                <div class="topbar-right">
+                    <span class="user-greeting">Hola, Nacho Iglesias</span>
+                    <button id="logout-btn" class="btn-logout">Cerrar sesión</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Filter Bar -->
+            <section class="filter-section">
+                <h2 class="section-title">Filtros</h2>
+                <div class="filter-bar">
+                    <div class="filter-group">
+                        <label for="filter-date">Período</label>
+                        <select id="filter-date" class="filter-select">
+                            <option value="all">Todo el historial</option>
+                            <option value="7days">Últimos 7 días</option>
+                            <option value="30days">Últimos 30 días</option>
+                            <option value="thismonth">Este mes</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="filter-campo">Campo</label>
+                        <select id="filter-campo" class="filter-select">
+                            <option value="">Todos</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="filter-rodeo">Rodeo</label>
+                        <select id="filter-rodeo" class="filter-select">
+                            <option value="">Todos</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="filter-supracategoria">Supracategoría</label>
+                        <select id="filter-supracategoria" class="filter-select">
+                            <option value="">Todas</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="filter-categoria">Categoría</label>
+                        <select id="filter-categoria" class="filter-select">
+                            <option value="">Todas</option>
+                        </select>
+                    </div>
+                    <button id="clear-filters-btn" class="btn-clear">Limpiar</button>
+                </div>
+            </section>
+
+            <!-- KPI Cards -->
+            <section class="kpi-section">
+                <div class="kpi-grid">
+                    <div class="kpi-card">
+                        <div class="kpi-icon">📊</div>
+                        <div class="kpi-content">
+                            <p class="kpi-label">Stock Total</p>
+                            <p class="kpi-value" id="kpi-stock">0</p>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon">🏞️</div>
+                        <div class="kpi-content">
+                            <p class="kpi-label">Campos Activos</p>
+                            <p class="kpi-value" id="kpi-campos">0</p>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon">🐄</div>
+                        <div class="kpi-content">
+                            <p class="kpi-label">Rodeos</p>
+                            <p class="kpi-value" id="kpi-rodeos">0</p>
+                        </div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-icon">📋</div>
+                        <div class="kpi-content">
+                            <p class="kpi-label">Categorías</p>
+                            <p class="kpi-value" id="kpi-categorias">0</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Chart Section -->
+            <section class="chart-section">
+                <h2 class="section-title">Evolución de Stock</h2>
+                <div class="chart-container">
+                    <canvas id="stock-chart"></canvas>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Supabase CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
