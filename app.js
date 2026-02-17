@@ -31,7 +31,7 @@ function handleLogin(event) {
     const password = document.getElementById('password').value;
     const errorElement = document.getElementById('login-error');
 
-    if (email === VALID_EMAIL && password === VALID_PASSWORD) {
+    if (email.toLowerCase() === VALID_EMAIL.toLowerCase() && password === VALID_PASSWORD) {
         localStorage.setItem('auth', 'true');
         errorElement.classList.remove('show');
         checkAuth();
@@ -51,12 +51,40 @@ function handleLogout() {
 }
 
 // ===== UI HELPERS =====
-function showLoading() {
-    document.getElementById('loading-overlay').classList.add('show');
+function showLoading(isInitial = false) {
+    if (isInitial) {
+        document.getElementById('loading-overlay').classList.add('show');
+    }
+
+    // Show skeletons
+    document.querySelectorAll('.kpi-card').forEach(card => card.classList.add('loading'));
+    document.querySelector('.chart-card').classList.add('loading');
+    document.getElementById('no-data-message').style.display = 'none';
 }
 
 function hideLoading() {
     document.getElementById('loading-overlay').classList.remove('show');
+
+    // Hide skeletons
+    document.querySelectorAll('.kpi-card').forEach(card => card.classList.remove('loading'));
+    document.querySelector('.chart-card').classList.remove('loading');
+}
+
+function updateActiveFiltersIndicator() {
+    const campoValue = document.getElementById('filter-campo').value;
+    const rodeoValue = document.getElementById('filter-rodeo').value;
+    const supracategoriaValue = document.getElementById('filter-supracategoria').value;
+    const categoriaValue = document.getElementById('filter-categoria').value;
+    const dateFilter = document.getElementById('filter-date').value;
+
+    const hasActiveFilters = campoValue || rodeoValue || supracategoriaValue || categoriaValue || dateFilter !== 'all';
+    const indicator = document.getElementById('active-filters-indicator');
+
+    if (hasActiveFilters) {
+        indicator.style.display = 'flex';
+    } else {
+        indicator.style.display = 'none';
+    }
 }
 
 function showError(message) {
@@ -76,64 +104,56 @@ function hideError() {
 
 async function initializeFilters() {
     try {
-        showLoading();
+        showLoading(true);
         hideError();
         // Fetch unique values for all filters from Historial_Stock table
         const { data, error } = await supabaseClient.from('Historial_Stock').select('Campo, Rodeo, Supracategoria, Categoria');
         if (error) throw error;
 
         // Use capitalized column names
-        const campos = [...new Set(data.map(item => item.Campo))].sort();
-        const rodeos = [...new Set(data.map(item => item.Rodeo))].sort();
-        const supracategorias = [...new Set(data.map(item => item.Supracategoria))].sort();
-        const categorias = [...new Set(data.map(item => item.Categoria))].sort();
+        const campos = [...new Set(data.map(item => item.Campo))].filter(Boolean).sort();
+        const rodeos = [...new Set(data.map(item => item.Rodeo))].filter(Boolean).sort();
+        const supracategorias = [...new Set(data.map(item => item.Supracategoria))].filter(Boolean).sort();
+        const categorias = [...new Set(data.map(item => item.Categoria))].filter(Boolean).sort();
 
         // Populate Campo filter
         const campoSelect = document.getElementById('filter-campo');
-        campoSelect.innerHTML = '<option value="">Todos</option>';
+        campoSelect.innerHTML = '<option value="">Todos los campos</option>';
         campos.forEach(value => {
-            if (value) {
-                const option = document.createElement('option');
-                option.value = value;
-                option.textContent = value;
-                campoSelect.appendChild(option);
-            }
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = value;
+            campoSelect.appendChild(option);
         });
 
         // Populate Rodeo filter
         const rodeoSelect = document.getElementById('filter-rodeo');
-        rodeoSelect.innerHTML = '<option value="">Todos</option>';
+        rodeoSelect.innerHTML = '<option value="">Todos los rodeos</option>';
         rodeos.forEach(value => {
-            if (value) {
-                const option = document.createElement('option');
-                option.value = value;
-                option.textContent = value;
-                rodeoSelect.appendChild(option);
-            }
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = value;
+            rodeoSelect.appendChild(option);
         });
 
         // Populate Supracategoria filter
         const supracategoriaSelect = document.getElementById('filter-supracategoria');
-        supracategoriaSelect.innerHTML = '<option value="">Todas</option>';
+        supracategoriaSelect.innerHTML = '<option value="">Todas las supracategorías</option>';
         supracategorias.forEach(value => {
-            if (value) {
-                const option = document.createElement('option');
-                option.value = value;
-                option.textContent = value;
-                supracategoriaSelect.appendChild(option);
-            }
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = value;
+            supracategoriaSelect.appendChild(option);
         });
 
         // Populate Categoria filter
         const categoriaSelect = document.getElementById('filter-categoria');
-        categoriaSelect.innerHTML = '<option value="">Todas</option>';
+        categoriaSelect.innerHTML = '<option value="">Todas las categorías</option>';
         categorias.forEach(value => {
-            if (value) {
-                const option = document.createElement('option');
-                option.value = value;
-                option.textContent = value;
-                categoriaSelect.appendChild(option);
-            }
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = value;
+            categoriaSelect.appendChild(option);
         });
 
         hideLoading();
@@ -146,8 +166,10 @@ async function initializeFilters() {
 
 async function fetchFilteredData() {
     try {
-        showLoading();
+        updateActiveFiltersIndicator();
+        showLoading(false);
         hideError();
+
         const campoValue = document.getElementById('filter-campo').value;
         const rodeoValue = document.getElementById('filter-rodeo').value;
         const supracategoriaValue = document.getElementById('filter-supracategoria').value;
@@ -165,7 +187,7 @@ async function fetchFilteredData() {
 
         // Date Period Filtering
         if (dateFilter !== 'all') {
-            const today = new Date(); // Use actual current date
+            const today = new Date();
             let dateFrom = new Date(today);
 
             if (dateFilter === '7days') {
@@ -183,7 +205,14 @@ async function fetchFilteredData() {
         const { data, error } = await query;
         if (error) throw error;
 
-        updateDashboard(data);
+        if (!data || data.length === 0) {
+            document.getElementById('no-data-message').style.display = 'flex';
+            updateDashboard([]);
+        } else {
+            document.getElementById('no-data-message').style.display = 'none';
+            updateDashboard(data);
+        }
+
         hideLoading();
 
     } catch (error) {
@@ -205,7 +234,7 @@ function clearFilters() {
 
 // ===== KPI UPDATES =====
 function calculateKPIs(data) {
-    if (!data) return { stockTotal: 0, camposActivos: 0, rodeos: 0, categorias: 0 };
+    if (!data || data.length === 0) return { stockTotal: 0, camposActivos: 0, rodeos: 0, categorias: 0 };
 
     return {
         stockTotal: data.reduce((sum, item) => sum + (item.Cantidad || 0), 0),
@@ -216,7 +245,7 @@ function calculateKPIs(data) {
 }
 
 function updateKPICards(kpis) {
-    document.getElementById('kpi-stock').textContent = kpis.stockTotal.toLocaleString();
+    document.getElementById('kpi-stock').textContent = kpis.stockTotal.toLocaleString('es-AR');
     document.getElementById('kpi-campos').textContent = kpis.camposActivos;
     document.getElementById('kpi-rodeos').textContent = kpis.rodeos;
     document.getElementById('kpi-categorias').textContent = kpis.categorias;
@@ -234,11 +263,11 @@ function initChart() {
                 label: 'Stock Total',
                 data: [],
                 borderColor: '#4169FF',
-                backgroundColor: 'rgba(65, 105, 255, 0.1)',
+                backgroundColor: 'rgba(65, 105, 255, 0.08)',
                 borderWidth: 3,
                 fill: true,
                 tension: 0.4,
-                pointRadius: 4,
+                pointRadius: 2,
                 pointHoverRadius: 6,
                 pointBackgroundColor: '#4169FF',
                 pointBorderColor: '#fff',
@@ -248,29 +277,28 @@ function initChart() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: {
+                intersect: false,
+                mode: 'index',
+            },
             plugins: {
                 legend: {
-                    display: false,
-                    position: 'top',
-                    labels: {
-                        font: {
-                            size: 14,
-                            weight: '500'
-                        }
-                    }
+                    display: false
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    backgroundColor: '#1e293b',
                     padding: 12,
                     titleFont: {
-                        size: 14
+                        size: 14,
+                        family: 'Inter'
                     },
                     bodyFont: {
-                        size: 13
+                        size: 13,
+                        family: 'Inter'
                     },
                     callbacks: {
                         label: function (context) {
-                            return 'Stock: ' + context.parsed.y.toLocaleString();
+                            return 'Stock: ' + context.parsed.y.toLocaleString('es-AR');
                         }
                     }
                 }
@@ -279,11 +307,16 @@ function initChart() {
                 y: {
                     beginAtZero: true,
                     grid: {
-                        color: 'rgba(0, 0, 0, 0.05)'
+                        color: '#f1f5f9'
                     },
                     ticks: {
                         font: {
-                            size: 12
+                            size: 11,
+                            family: 'Inter'
+                        },
+                        callback: function (value) {
+                            if (value >= 1000) return value / 1000 + 'k';
+                            return value;
                         }
                     }
                 },
@@ -292,8 +325,12 @@ function initChart() {
                         display: false
                     },
                     ticks: {
+                        maxRotation: 0,
+                        autoSkip: true,
+                        maxTicksLimit: 8,
                         font: {
-                            size: 12
+                            size: 11,
+                            family: 'Inter'
                         }
                     }
                 }
@@ -303,7 +340,14 @@ function initChart() {
 }
 
 function updateChart(data) {
-    if (!data) return;
+    if (!data || data.length === 0) {
+        if (chartInstance) {
+            chartInstance.data.labels = [];
+            chartInstance.data.datasets[0].data = [];
+            chartInstance.update();
+        }
+        return;
+    }
 
     // Group data by Fecha and sum Cantidads
     const groupedData = data.reduce((acc, item) => {
@@ -319,9 +363,15 @@ function updateChart(data) {
     const sortedDates = Object.keys(groupedData).sort();
     const quantities = sortedDates.map(date => groupedData[date]);
 
+    // Format dates for chart labels
+    const formattedLabels = sortedDates.map(date => {
+        const [y, m, d] = date.split('-');
+        return `${d}/${m}`;
+    });
+
     // Update chart
     if (chartInstance) {
-        chartInstance.data.labels = sortedDates;
+        chartInstance.data.labels = formattedLabels;
         chartInstance.data.datasets[0].data = quantities;
         chartInstance.update();
     }
