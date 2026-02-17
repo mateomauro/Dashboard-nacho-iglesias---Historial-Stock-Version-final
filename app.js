@@ -234,13 +234,28 @@ function clearFilters() {
 
 // ===== KPI UPDATES =====
 function calculateKPIs(data) {
-    if (!data || data.length === 0) return { stockTotal: 0, camposActivos: 0, rodeos: 0, categorias: 0 };
+    if (!data || data.length === 0) return {
+        stockTotal: 0,
+        camposActivos: 0,
+        rodeos: 0,
+        categorias: 0,
+        listaCampos: [],
+        listaRodeos: [],
+        listaCategorias: []
+    };
+
+    const uniqueCampos = [...new Set(data.map(item => item.Campo))].filter(Boolean).sort();
+    const uniqueRodeos = [...new Set(data.map(item => item.Rodeo))].filter(Boolean).sort();
+    const uniqueCategorias = [...new Set(data.map(item => item.Categoria))].filter(Boolean).sort();
 
     return {
         stockTotal: data.reduce((sum, item) => sum + (item.Cantidad || 0), 0),
-        camposActivos: new Set(data.map(item => item.Campo)).size,
-        rodeos: new Set(data.map(item => item.Rodeo)).size,
-        categorias: new Set(data.map(item => item.Categoria)).size
+        camposActivos: uniqueCampos.length,
+        rodeos: uniqueRodeos.length,
+        categorias: uniqueCategorias.length,
+        listaCampos: uniqueCampos,
+        listaRodeos: uniqueRodeos,
+        listaCategorias: uniqueCategorias
     };
 }
 
@@ -249,6 +264,16 @@ function updateKPICards(kpis) {
     document.getElementById('kpi-campos').textContent = kpis.camposActivos;
     document.getElementById('kpi-rodeos').textContent = kpis.rodeos;
     document.getElementById('kpi-categorias').textContent = kpis.categorias;
+
+    // Helper to format list
+    const formatList = (list) => {
+        if (list.length === 0) return '';
+        return list.join(', ');
+    };
+
+    document.getElementById('kpi-campos-details').textContent = formatList(kpis.listaCampos);
+    document.getElementById('kpi-rodeos-details').textContent = formatList(kpis.listaRodeos);
+    document.getElementById('kpi-categorias-details').textContent = formatList(kpis.listaCategorias);
 }
 
 // ===== CHART LOGIC =====
