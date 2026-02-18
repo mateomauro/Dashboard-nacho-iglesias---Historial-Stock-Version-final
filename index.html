@@ -134,7 +134,7 @@
             <section class="kpi-section" aria-label="Métricas clave">
                 <div class="kpi-grid">
                     <!-- Stock Card -->
-                    <div class="kpi-card" id="card-stock">
+                    <div class="kpi-card clickable" id="card-stock">
                         <div class="kpi-icon-container blue">
                             <span class="kpi-icon">📊</span>
                         </div>
@@ -144,10 +144,13 @@
                                 <p class="kpi-value" id="kpi-stock">0</p>
                                 <div class="skeleton-text skeleton-value"></div>
                             </div>
+                            <div class="kpi-summary" id="kpi-stock-summary">
+                                <!-- Populated by JS -->
+                            </div>
                         </div>
                     </div>
                     <!-- Campos Card -->
-                    <div class="kpi-card" id="card-campos">
+                    <div class="kpi-card clickable" id="card-campos">
                         <div class="kpi-icon-container green">
                             <span class="kpi-icon">🏞️</span>
                         </div>
@@ -157,11 +160,13 @@
                                 <p class="kpi-value" id="kpi-campos">0</p>
                                 <div class="skeleton-text skeleton-value"></div>
                             </div>
-                            <p class="kpi-subtitle" id="kpi-campos-details"></p>
+                            <div class="kpi-summary" id="kpi-campos-summary">
+                                <!-- Populated by JS -->
+                            </div>
                         </div>
                     </div>
                     <!-- Rodeos Card -->
-                    <div class="kpi-card" id="card-rodeos">
+                    <div class="kpi-card clickable" id="card-rodeos">
                         <div class="kpi-icon-container orange">
                             <span class="kpi-icon">🐄</span>
                         </div>
@@ -171,11 +176,13 @@
                                 <p class="kpi-value" id="kpi-rodeos">0</p>
                                 <div class="skeleton-text skeleton-value"></div>
                             </div>
-                            <p class="kpi-subtitle" id="kpi-rodeos-details"></p>
+                            <div class="kpi-summary" id="kpi-rodeos-summary">
+                                <!-- Populated by JS -->
+                            </div>
                         </div>
                     </div>
                     <!-- Categorías Card -->
-                    <div class="kpi-card" id="card-categorias">
+                    <div class="kpi-card clickable" id="card-categorias">
                         <div class="kpi-icon-container purple">
                             <span class="kpi-icon">📋</span>
                         </div>
@@ -185,7 +192,9 @@
                                 <p class="kpi-value" id="kpi-categorias">0</p>
                                 <div class="skeleton-text skeleton-value"></div>
                             </div>
-                            <p class="kpi-subtitle" id="kpi-categorias-details"></p>
+                            <div class="kpi-summary" id="kpi-categorias-summary">
+                                <!-- Populated by JS -->
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -236,44 +236,128 @@ function clearFilters() {
 function calculateKPIs(data) {
     if (!data || data.length === 0) return {
         stockTotal: 0,
-        camposActivos: 0,
-        rodeos: 0,
-        categorias: 0,
-        listaCampos: [],
-        listaRodeos: [],
-        listaCategorias: []
+        camposCount: 0,
+        rodeosCount: 0,
+        categoriasCount: 0,
+        camposList: [],
+        rodeosList: [],
+        categoriasList: [],
+        supracategoriasList: []
     };
 
-    const uniqueCampos = [...new Set(data.map(item => item.Campo))].filter(Boolean).sort();
-    const uniqueRodeos = [...new Set(data.map(item => item.Rodeo))].filter(Boolean).sort();
-    const uniqueCategorias = [...new Set(data.map(item => item.Categoria))].filter(Boolean).sort();
+    const getCounts = (key) => {
+        const counts = data.reduce((acc, item) => {
+            const val = item[key];
+            if (val) {
+                acc[val] = (acc[val] || 0) + (item.Cantidad || 0);
+            }
+            return acc;
+        }, {});
+        return Object.entries(counts)
+            .map(([name, count]) => ({ name, count }))
+            .sort((a, b) => b.count - a.count); // Most populated first
+    };
 
     return {
         stockTotal: data.reduce((sum, item) => sum + (item.Cantidad || 0), 0),
-        camposActivos: uniqueCampos.length,
-        rodeos: uniqueRodeos.length,
-        categorias: uniqueCategorias.length,
-        listaCampos: uniqueCampos,
-        listaRodeos: uniqueRodeos,
-        listaCategorias: uniqueCategorias
+        camposCount: [...new Set(data.map(item => item.Campo))].filter(Boolean).length,
+        rodeosCount: [...new Set(data.map(item => item.Rodeo))].filter(Boolean).length,
+        categoriasCount: [...new Set(data.map(item => item.Categoria))].filter(Boolean).length,
+        camposList: getCounts('Campo'),
+        rodeosList: getCounts('Rodeo'),
+        categoriasList: getCounts('Categoria'),
+        supracategoriasList: getCounts('Supracategoria')
     };
 }
 
 function updateKPICards(kpis) {
     document.getElementById('kpi-stock').textContent = kpis.stockTotal.toLocaleString('es-AR');
-    document.getElementById('kpi-campos').textContent = kpis.camposActivos;
-    document.getElementById('kpi-rodeos').textContent = kpis.rodeos;
-    document.getElementById('kpi-categorias').textContent = kpis.categorias;
+    document.getElementById('kpi-campos').textContent = kpis.camposCount;
+    document.getElementById('kpi-rodeos').textContent = kpis.rodeosCount;
+    document.getElementById('kpi-categorias').textContent = kpis.categoriasCount;
 
-    // Helper to format list
-    const formatList = (list) => {
-        if (list.length === 0) return '';
-        return list.join(', ');
+    // Helper to render summary as accordion
+    const renderSummary = (elementId, list, type, totalCount) => {
+        const container = document.getElementById(elementId);
+        if (!container) return;
+
+        if (list.length === 0) {
+            container.innerHTML = '';
+            return;
+        }
+
+        // Render full list, CSS handles truncation via :nth-child(n+4) when collapsed
+        const itemsHtml = list.map(item => `
+            <span class="kpi-summary-item">
+                ${item.name} <strong>(${item.count.toLocaleString('es-AR')})</strong>
+            </span>
+        `).join('');
+
+        let subtitleHtml = '';
+        if (totalCount > 0) {
+            subtitleHtml = `<p class="kpi-card-subtitle">Items totales: ${totalCount}</p>`;
+        }
+
+        let html = `
+            ${subtitleHtml}
+            <div class="kpi-summary-list" style="margin-top: 8px;">${itemsHtml}</div>
+        `;
+
+        if (totalCount > 3) {
+            html += `<a href="#" class="kpi-view-all" data-type="${type}">Ver todos (${totalCount})</a>`;
+        }
+
+        container.innerHTML = html;
+
+        // Toggle logic
+        const viewAllBtn = container.querySelector('.kpi-view-all');
+        if (viewAllBtn) {
+            viewAllBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+
+                const card = container.closest('.kpi-card');
+                const isExpanded = card.classList.toggle('expanded');
+
+                viewAllBtn.textContent = isExpanded ? 'Ver menos' : `Ver todos (${totalCount})`;
+            });
+        }
     };
 
-    document.getElementById('kpi-campos-details').textContent = formatList(kpis.listaCampos);
-    document.getElementById('kpi-rodeos-details').textContent = formatList(kpis.listaRodeos);
-    document.getElementById('kpi-categorias-details').textContent = formatList(kpis.listaCategorias);
+    renderSummary('kpi-stock-summary', kpis.supracategoriasList, 'supracategoria', kpis.supracategoriasList.length);
+    renderSummary('kpi-campos-summary', kpis.camposList, 'campo', kpis.camposCount);
+    renderSummary('kpi-rodeos-summary', kpis.rodeosList, 'rodeo', kpis.rodeosCount);
+    renderSummary('kpi-categorias-summary', kpis.categoriasList, 'categoria', kpis.categoriasCount);
+}
+
+// Add click listeners to cards (scroll to filters)
+function setupCardClicks() {
+    const cards = [
+        { id: 'card-stock', filter: 'filter-supracategoria' },
+        { id: 'card-campos', filter: 'filter-campo' },
+        { id: 'card-rodeos', filter: 'filter-rodeo' },
+        { id: 'card-categorias', filter: 'filter-categoria' }
+    ];
+
+    cards.forEach(card => {
+        const el = document.getElementById(card.id);
+        if (el) {
+            el.addEventListener('click', (e) => {
+                // If the user clicked toggle button, don't trigger the card scroll
+                if (e.target.classList.contains('kpi-view-all')) return;
+
+                const filterEl = document.getElementById(card.filter);
+                if (filterEl) {
+                    filterEl.focus();
+                    filterEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    filterEl.parentElement.style.boxShadow = '0 0 0 4px rgba(65, 105, 255, 0.2)';
+                    setTimeout(() => {
+                        filterEl.parentElement.style.boxShadow = '';
+                    }, 2000);
+                }
+            });
+        }
+    });
 }
 
 // ===== CHART LOGIC =====
@@ -428,6 +512,9 @@ async function initializeDashboard() {
     document.getElementById('filter-supracategoria').addEventListener('change', fetchFilteredData);
     document.getElementById('filter-categoria').addEventListener('change', fetchFilteredData);
     document.getElementById('clear-filters-btn').addEventListener('click', clearFilters);
+
+    // Setup KPI card clicks
+    setupCardClicks();
 }
 
 // ===== EVENT LISTENERS =====

@@ -459,25 +459,44 @@ body {
     box-shadow: var(--shadow-sm);
     border: 1px solid var(--border);
     display: flex;
-    align-items: center;
-    gap: var(--space-md);
+    flex-direction: column;
+    gap: var(--space-sm);
     transition: var(--transition);
+    position: relative;
+    /* overflow removed to prevent clipping links/shadows */
 }
 
-.kpi-card:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
-    border-color: rgba(65, 105, 255, 0.2);
+.kpi-card.clickable {
+    cursor: pointer;
+}
+
+.kpi-card.clickable:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--primary);
+}
+
+.kpi-card-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+}
+
+.kpi-header-main {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    width: 100%;
 }
 
 .kpi-icon-container {
-    width: 56px;
-    height: 56px;
-    border-radius: var(--radius-md);
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.5rem;
+    font-size: 1.25rem;
     flex-shrink: 0;
 }
 
@@ -506,34 +525,134 @@ body {
 }
 
 .kpi-label {
-    font-size: 0.8125rem;
-    font-weight: 600;
+    font-size: 0.875rem;
+    font-weight: 500;
     color: var(--text-secondary);
     margin-bottom: 2px;
 }
 
-.kpi-subtitle {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    margin-top: 4px;
-    display: block;
-    line-height: 1.4;
-    word-break: break-word;
-}
-
 .kpi-value-container {
     position: relative;
-    height: 2.25rem;
     display: flex;
-    align-items: center;
+    align-items: baseline;
+    gap: var(--space-xs);
 }
 
 .kpi-value {
-    font-size: 1.75rem;
-    font-weight: 700;
+    font-size: 2.25rem;
+    font-weight: 800;
     color: var(--text-primary);
+    line-height: 1;
     letter-spacing: -0.02em;
 }
+
+.kpi-summary {
+    margin-top: var(--space-xs);
+    padding-top: var(--space-sm);
+    border-top: 1px solid var(--border);
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.kpi-summary-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    list-style: none;
+}
+
+.kpi-summary-item {
+    background: var(--bg-main);
+    padding: 2px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+.kpi-summary-item strong {
+    color: var(--text-primary);
+}
+
+.kpi-view-all {
+    color: var(--primary);
+    font-weight: 700;
+    text-decoration: none;
+    font-size: 0.75rem;
+    margin-top: 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 0;
+    transition: var(--transition);
+}
+
+.kpi-view-all::after {
+    content: '↓';
+    font-size: 0.8rem;
+    transition: transform 0.3s ease;
+}
+
+.kpi-card.expanded .kpi-view-all::after {
+    transform: rotate(180deg);
+}
+
+.kpi-view-all:hover {
+    color: var(--primary-dark);
+}
+
+.kpi-view-all:hover::after {
+    transform: translateY(2px);
+}
+
+.kpi-card.expanded .kpi-view-all:hover::after {
+    transform: rotate(180deg) translateY(2px);
+}
+
+.kpi-card-subtitle {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin: 4px 0;
+}
+
+/* Accordion Specific */
+.kpi-summary {
+    transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    max-height: 200px;
+    /* Increased to ensure link is never cut off in colapsed state */
+    overflow: hidden;
+    padding-bottom: 4px;
+    /* Space for the link */
+}
+
+.kpi-card.expanded .kpi-summary {
+    max-height: 1500px;
+    /* Large enough for full list */
+}
+
+.kpi-summary-list {
+    transition: opacity 0.3s ease;
+}
+
+/* Show only first 3 items when not expanded */
+.kpi-card:not(.expanded) .kpi-summary-item:nth-child(n+4) {
+    display: none;
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 640px) {
+    .kpi-summary {
+        display: block;
+        /* Ensure it's visible on mobile as accordion */
+    }
+
+    .kpi-card {
+        padding: var(--space-md);
+    }
+}
+
+/* ===== CHART SECTION ===== */
 
 /* ===== CHART SECTION ===== */
 .chart-card {
