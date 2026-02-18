@@ -100,6 +100,100 @@ function hideError() {
     document.getElementById('api-error').classList.remove('show');
 }
 
+// ===== SIDE PANEL LOGIC =====
+let panelState = {
+    list: [],
+    type: '',
+    title: ''
+};
+
+function openPanel(list, type, title) {
+    panelState = { list, type, title };
+
+    document.getElementById('panel-title').textContent = title;
+    document.getElementById('panel-search-input').value = '';
+    const overlay = document.getElementById('side-panel-overlay');
+    overlay.classList.add('show');
+    document.body.style.overflow = 'hidden';
+
+    renderPanelList(list);
+}
+
+function closePanel() {
+    const overlay = document.getElementById('side-panel-overlay');
+    if (overlay) overlay.classList.remove('show');
+    document.body.style.overflow = '';
+}
+
+function renderPanelList(items) {
+    const listElement = document.getElementById('panel-list');
+    if (!listElement) return;
+
+    listElement.innerHTML = items.map(item => `
+        <li class="panel-item" data-value="${item.name}">
+            <span class="item-name">${item.name}</span>
+            <span class="item-count">${item.count.toLocaleString('es-AR')}</span>
+        </li>
+    `).join('');
+
+    // Add click events to items to apply filter
+    listElement.querySelectorAll('.panel-item').forEach(el => {
+        el.addEventListener('click', () => {
+            const value = el.getAttribute('data-value');
+            applyPanelFilter(panelState.type, value);
+            closePanel();
+        });
+    });
+}
+
+function filterPanelList() {
+    const searchTerm = document.getElementById('panel-search-input').value.toLowerCase();
+    const filtered = panelState.list.filter(item =>
+        item.name.toLowerCase().includes(searchTerm)
+    );
+    renderPanelList(filtered);
+}
+
+function applyPanelFilter(type, value) {
+    const filterIdMap = {
+        'campo': 'filter-campo',
+        'rodeo': 'filter-rodeo',
+        'categoria': 'filter-categoria',
+        'supracategoria': 'filter-supracategoria'
+    };
+
+    const filterId = filterIdMap[type];
+    const filterEl = document.getElementById(filterId);
+    if (filterEl) {
+        filterEl.value = value;
+        // Trigger data refresh
+        fetchFilteredData();
+        // Visual feedback
+        filterEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const parent = filterEl.parentElement;
+        if (parent) {
+            parent.style.boxShadow = '0 0 0 4px rgba(65, 105, 255, 0.2)';
+            setTimeout(() => { parent.style.boxShadow = ''; }, 2000);
+        }
+    }
+}
+
+function setupPanelListeners() {
+    const overlay = document.getElementById('side-panel-overlay');
+    const closeBtn = document.getElementById('close-panel');
+    const searchInput = document.getElementById('panel-search-input');
+
+    if (closeBtn) closeBtn.addEventListener('click', closePanel);
+
+    // Close on click outside (overlay)
+    if (overlay) overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) closePanel();
+    });
+
+    // Search input real-time filtering
+    if (searchInput) searchInput.addEventListener('input', filterPanelList);
+}
+
 // ===== FILTER LOGIC (Server-Side with Supabase) =====
 
 async function initializeFilters() {
@@ -276,8 +370,8 @@ function updateKPICards(kpis) {
     document.getElementById('kpi-rodeos').textContent = kpis.rodeosCount;
     document.getElementById('kpi-categorias').textContent = kpis.categoriasCount;
 
-    // Helper to render summary as accordion
-    const renderSummary = (elementId, list, type, totalCount) => {
+    // Helper to render summary as side panel trigger
+    const renderSummary = (elementId, list, type, totalCount, displayTitle) => {
         const container = document.getElementById(elementId);
         if (!container) return;
 
@@ -286,17 +380,15 @@ function updateKPICards(kpis) {
             return;
         }
 
-        // Render full list, CSS handles truncation via :nth-child(n+4) when collapsed
-        const itemsHtml = list.map(item => `
+        // Render top 3 only in the card
+        const top3 = list.slice(0, 3);
+        const itemsHtml = top3.map(item => `
             <span class="kpi-summary-item">
                 ${item.name} <strong>(${item.count.toLocaleString('es-AR')})</strong>
             </span>
         `).join('');
 
-        let subtitleHtml = '';
-        if (totalCount > 0) {
-            subtitleHtml = `<p class="kpi-card-subtitle">Items totales: ${totalCount}</p>`;
-        }
+        let subtitleHtml = `<p class="kpi-card-subtitle">Items totales: ${totalCount}</p>`;
 
         let html = `
             ${subtitleHtml}
@@ -304,30 +396,25 @@ function updateKPICards(kpis) {
         `;
 
         if (totalCount > 3) {
-            html += `<a href="#" class="kpi-view-all" data-type="${type}">Ver todos (${totalCount})</a>`;
+            html += `<a href="#" class="kpi-view-all" data-type="${type}">Ver lista completa</a>`;
         }
 
         container.innerHTML = html;
 
-        // Toggle logic
         const viewAllBtn = container.querySelector('.kpi-view-all');
         if (viewAllBtn) {
             viewAllBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-
-                const card = container.closest('.kpi-card');
-                const isExpanded = card.classList.toggle('expanded');
-
-                viewAllBtn.textContent = isExpanded ? 'Ver menos' : `Ver todos (${totalCount})`;
+                openPanel(list, type, displayTitle);
             });
         }
     };
 
-    renderSummary('kpi-stock-summary', kpis.supracategoriasList, 'supracategoria', kpis.supracategoriasList.length);
-    renderSummary('kpi-campos-summary', kpis.camposList, 'campo', kpis.camposCount);
-    renderSummary('kpi-rodeos-summary', kpis.rodeosList, 'rodeo', kpis.rodeosCount);
-    renderSummary('kpi-categorias-summary', kpis.categoriasList, 'categoria', kpis.categoriasCount);
+    renderSummary('kpi-stock-summary', kpis.supracategoriasList, 'supracategoria', kpis.supracategoriasList.length, 'Todas las Supracategorías');
+    renderSummary('kpi-campos-summary', kpis.camposList, 'campo', kpis.camposCount, 'Todos los Campos');
+    renderSummary('kpi-rodeos-summary', kpis.rodeosList, 'rodeo', kpis.rodeosCount, 'Todos los Rodeos');
+    renderSummary('kpi-categorias-summary', kpis.categoriasList, 'categoria', kpis.categoriasCount, 'Todas las Categorías');
 }
 
 // Add click listeners to cards (scroll to filters)
@@ -343,17 +430,18 @@ function setupCardClicks() {
         const el = document.getElementById(card.id);
         if (el) {
             el.addEventListener('click', (e) => {
-                // If the user clicked toggle button, don't trigger the card scroll
-                if (e.target.classList.contains('kpi-view-all')) return;
+                // If the user clicked inside kpi-view-all, it's already handled
+                if (e.target.closest('.kpi-view-all')) return;
 
                 const filterEl = document.getElementById(card.filter);
                 if (filterEl) {
                     filterEl.focus();
                     filterEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    filterEl.parentElement.style.boxShadow = '0 0 0 4px rgba(65, 105, 255, 0.2)';
-                    setTimeout(() => {
-                        filterEl.parentElement.style.boxShadow = '';
-                    }, 2000);
+                    const parent = filterEl.parentElement;
+                    if (parent) {
+                        parent.style.boxShadow = '0 0 0 4px rgba(65, 105, 255, 0.2)';
+                        setTimeout(() => { if (parent) parent.style.boxShadow = ''; }, 2000);
+                    }
                 }
             });
         }
@@ -515,6 +603,9 @@ async function initializeDashboard() {
 
     // Setup KPI card clicks
     setupCardClicks();
+
+    // Setup Side Panel listeners
+    setupPanelListeners();
 }
 
 // ===== EVENT LISTENERS =====

@@ -223,6 +223,36 @@
         </main>
     </div>
 
+    <!-- Side Panel (Drawer) for detailed exploration -->
+    <div id="side-panel-overlay" class="panel-overlay">
+        <div class="panel-container">
+            <div class="panel-header">
+                <div class="panel-title-group">
+                    <h3 id="panel-title">Detalles</h3>
+                    <p id="panel-subtitle" class="panel-subtitle">Explora todos los ítems disponibles</p>
+                </div>
+                <button id="close-panel" class="btn-close-panel" aria-label="Cerrar panel">&times;</button>
+            </div>
+
+            <div class="panel-search">
+                <div class="search-field">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="panel-search-input" placeholder="Buscar por nombre...">
+                </div>
+            </div>
+
+            <div class="panel-content">
+                <ul id="panel-list" class="panel-list">
+                    <!-- Populated via JS -->
+                </ul>
+            </div>
+
+            <div class="panel-footer">
+                <p>Haz clic en un ítem para filtrar el dashboard</p>
+            </div>
+        </div>
+    </div>
+
     <!-- Supabase CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- Chart.js CDN -->
