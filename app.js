@@ -1,54 +1,78 @@
 // ===== SUPABASE CONFIGURATION =====
 const SUPABASE_URL = 'https://urquftsucjtqxogjjhhx.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVycXVmdHN1Y2p0cXhvZ2pqaGh4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTg2NDcyMywiZXhwIjoyMDg3NDQwNzIzfQ.TboDhhhppaGHyE1JJdqhaJKkJBdARxLFi3X68jjgXH4';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVycXVmdHN1Y2p0cXhvZ2pqaGh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4NjQ3MjMsImV4cCI6MjA4NzQ0MDcyM30.GJu2UaYFqQAXMgghQY1Xag62tKecNG8hk-nzsvYKdzE';
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ===== GLOBAL STATE =====
 let chartInstance = null;
-const VALID_EMAIL = 'Iglesiasaym@gmail.com';
-const VALID_PASSWORD = 'admin';
+let isInitialized = false; // Para evitar doble inicialización
 
-// ===== AUTHENTICATION =====
-function checkAuth() {
-    const isAuthenticated = localStorage.getItem('auth') === 'true';
+// ===== AUTHENTICATION (Supabase Auth) =====
+async function checkAuth() {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    updateUIForAuth(session);
+}
+
+function updateUIForAuth(session) {
     const loginScreen = document.getElementById('login-screen');
     const dashboard = document.getElementById('dashboard');
 
-    if (isAuthenticated) {
+    if (session) {
         loginScreen.style.display = 'none';
         dashboard.style.display = 'block';
-        initializeDashboard();
+        if (!isInitialized) {
+            initializeDashboard();
+            isInitialized = true;
+        }
     } else {
         loginScreen.style.display = 'flex';
         dashboard.style.display = 'none';
+        isInitialized = false;
+        // Limpiar gráfico al cerrar sesión
+        if (chartInstance) {
+            chartInstance.destroy();
+            chartInstance = null;
+        }
     }
 }
 
-function handleLogin(event) {
+async function handleLogin(event) {
     event.preventDefault();
 
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
     const errorElement = document.getElementById('login-error');
+    const loginBtn = event.target.querySelector('button');
 
-    if (email.toLowerCase() === VALID_EMAIL.toLowerCase() && password === VALID_PASSWORD) {
-        localStorage.setItem('auth', 'true');
+    try {
+        loginBtn.disabled = true;
+        loginBtn.textContent = 'Iniciando...';
+
+        const { error } = await supabaseClient.auth.signInWithPassword({
+            email,
+            password,
+        });
+
+        if (error) throw error;
+
         errorElement.classList.remove('show');
-        checkAuth();
-    } else {
-        errorElement.textContent = 'Credenciales incorrectas. Verifica tu email y contraseña.';
+    } catch (error) {
+        errorElement.textContent = 'Error: ' + error.message;
         errorElement.classList.add('show');
+    } finally {
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'Iniciar Sesión';
     }
 }
 
-function handleLogout() {
-    localStorage.removeItem('auth');
-    if (chartInstance) {
-        chartInstance.destroy();
-        chartInstance = null;
-    }
-    checkAuth();
+async function handleLogout() {
+    await supabaseClient.auth.signOut();
 }
+
+// Escuchar cambios en el estado de autenticación (login/logout/refresh)
+supabaseClient.auth.onAuthStateChange((event, session) => {
+    updateUIForAuth(session);
+});
 
 // ===== UI HELPERS =====
 function showLoading(isInitial = false) {
