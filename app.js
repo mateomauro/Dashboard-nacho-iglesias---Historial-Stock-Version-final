@@ -79,11 +79,14 @@ function updateActiveFiltersIndicator() {
 
     const hasActiveFilters = campoValue || rodeoValue || supracategoriaValue || categoriaValue || dateFilter !== 'all';
     const indicator = document.getElementById('active-filters-indicator');
+    const clearBtn = document.getElementById('clear-filters-btn');
 
     if (hasActiveFilters) {
         indicator.style.display = 'flex';
+        clearBtn.disabled = false;
     } else {
         indicator.style.display = 'none';
+        clearBtn.disabled = true;
     }
 }
 

@@ -5,6 +5,8 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+    /* evita el flash azul/rojo al tocar en móvil */
 }
 
 /* UI/UX Pro Max — Data-Dense Dashboard Design System */
@@ -485,10 +487,21 @@ body {
     gap: 6px;
 }
 
-.btn-clear:hover:not(:disabled) {
+/* Solo aplica hover en dispositivos que soporten hover real (no touch) */
+@media (hover: hover) {
+    .btn-clear:hover:not(:disabled) {
+        background: #fff0f0;
+        border-color: #fca5a5;
+        color: var(--error);
+    }
+}
+
+/* Feedback táctil en móvil */
+.btn-clear:active:not(:disabled) {
     background: #fff0f0;
     border-color: #fca5a5;
     color: var(--error);
+    transform: scale(0.98);
 }
 
 .btn-clear:disabled {
