@@ -1,6 +1,6 @@
 // ===== SUPABASE CONFIGURATION =====
-const SUPABASE_URL = 'https://jvbafefldxyylmaknuhg.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp2YmFmZWZsZHh5eWxtYWtudWhnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA5MzE2NTUsImV4cCI6MjA4NjUwNzY1NX0.O2boJMcYTaNzXjHpYpbmytYMlFpeD-u00HVid9vfZmU';
+const SUPABASE_URL = 'https://urquftsucjtqxogjjhhx.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVycXVmdHN1Y2p0cXhvZ2pqaGh4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTg2NDcyMywiZXhwIjoyMDg3NDQwNzIzfQ.TboDhhhppaGHyE1JJdqhaJKkJBdARxLFi3X68jjgXH4';
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ===== GLOBAL STATE =====
@@ -439,7 +439,7 @@ function setupCardClicks() {
                     filterEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     const parent = filterEl.parentElement;
                     if (parent) {
-                        parent.style.boxShadow = '0 0 0 4px rgba(65, 105, 255, 0.2)';
+                        parent.style.boxShadow = '0 0 0 4px rgba(30, 64, 175, 0.18)';
                         setTimeout(() => { if (parent) parent.style.boxShadow = ''; }, 2000);
                     }
                 }
@@ -459,14 +459,14 @@ function initChart() {
             datasets: [{
                 label: 'Stock Total',
                 data: [],
-                borderColor: '#4169FF',
-                backgroundColor: 'rgba(65, 105, 255, 0.08)',
-                borderWidth: 3,
+                borderColor: '#1E40AF',
+                backgroundColor: 'rgba(30, 64, 175, 0.07)',
+                borderWidth: 2.5,
                 fill: true,
                 tension: 0.4,
-                pointRadius: 2,
-                pointHoverRadius: 6,
-                pointBackgroundColor: '#4169FF',
+                pointRadius: 3,
+                pointHoverRadius: 7,
+                pointBackgroundColor: '#F59E0B',
                 pointBorderColor: '#fff',
                 pointBorderWidth: 2
             }]
@@ -483,15 +483,18 @@ function initChart() {
                     display: false
                 },
                 tooltip: {
-                    backgroundColor: '#1e293b',
+                    backgroundColor: '#1E3A8A',
+                    borderColor: 'rgba(245, 158, 11, 0.4)',
+                    borderWidth: 1,
                     padding: 12,
                     titleFont: {
-                        size: 14,
-                        family: 'Inter'
+                        size: 13,
+                        family: 'Fira Code',
+                        weight: '600'
                     },
                     bodyFont: {
-                        size: 13,
-                        family: 'Inter'
+                        size: 12,
+                        family: 'Fira Sans'
                     },
                     callbacks: {
                         label: function (context) {
@@ -504,12 +507,13 @@ function initChart() {
                 y: {
                     beginAtZero: true,
                     grid: {
-                        color: '#f1f5f9'
+                        color: 'rgba(30, 64, 175, 0.06)'
                     },
                     ticks: {
+                        color: '#475569',
                         font: {
                             size: 11,
-                            family: 'Inter'
+                            family: 'Fira Sans'
                         },
                         callback: function (value) {
                             if (value >= 1000) return value / 1000 + 'k';
@@ -525,9 +529,10 @@ function initChart() {
                         maxRotation: 0,
                         autoSkip: true,
                         maxTicksLimit: 8,
+                        color: '#475569',
                         font: {
                             size: 11,
-                            family: 'Inter'
+                            family: 'Fira Sans'
                         }
                     }
                 }

@@ -5,17 +5,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel - Nacho Iglesias</title>
-    <!-- Google Fonts: Inter -->
+    <meta name="description" content="Dashboard de historial de stock agroindustrial - Panel de Control Nacho Iglesias">
+    <!-- Google Fonts: Fira Code + Fira Sans (UI/UX Pro Max — Data-Dense Dashboard) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Fira+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 
 <body>
+    <!-- Dot-grid background pattern -->
+    <div class="bg-grid" aria-hidden="true"></div>
+
     <!-- Login Screen -->
     <div id="login-screen" class="login-container">
         <div class="login-card">
+            <div class="login-logo" aria-hidden="true">
+                <!-- SVG: BarChart2 (Lucide) -->
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="20" x2="18" y2="10"></line>
+                    <line x1="12" y1="20" x2="12" y2="4"></line>
+                    <line x1="6" y1="20" x2="6" y2="14"></line>
+                </svg>
+            </div>
             <div class="login-header">
                 <h1>Panel de Control</h1>
                 <p>Ingresa tus credenciales para continuar</p>
@@ -52,6 +64,12 @@
         <header class="topbar">
             <div class="topbar-content">
                 <div class="topbar-left">
+                    <!-- SVG: BarChart2 (Lucide) -->
+                    <svg class="topbar-logo-icon" xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <line x1="18" y1="20" x2="18" y2="10"></line>
+                        <line x1="12" y1="20" x2="12" y2="4"></line>
+                        <line x1="6" y1="20" x2="6" y2="14"></line>
+                    </svg>
                     <h1 class="topbar-title">Panel</h1>
                     <span class="view-badge">Stock Histórico</span>
                 </div>
@@ -59,7 +77,12 @@
                     <span class="user-greeting">Hola, <strong>Nacho Iglesias</strong></span>
                     <button id="logout-btn" class="btn-logout" aria-label="Cerrar sesión">
                         <span class="logout-text">Cerrar sesión</span>
-                        <span class="logout-icon">↵</span>
+                        <!-- SVG: LogOut (Lucide) -->
+                        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                            <polyline points="16 17 21 12 16 7"></polyline>
+                            <line x1="21" y1="12" x2="9" y2="12"></line>
+                        </svg>
                     </button>
                 </div>
             </div>
@@ -87,6 +110,7 @@
                                     <option value="30days">Últimos 30 días</option>
                                     <option value="thismonth">Este mes</option>
                                 </select>
+                                <svg class="select-chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
                             </div>
                         </div>
                         <div class="filter-group">
@@ -95,6 +119,7 @@
                                 <select id="filter-campo" class="filter-select">
                                     <option value="">Todos</option>
                                 </select>
+                                <svg class="select-chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
                             </div>
                         </div>
                         <div class="filter-group">
@@ -103,6 +128,7 @@
                                 <select id="filter-rodeo" class="filter-select">
                                     <option value="">Todos</option>
                                 </select>
+                                <svg class="select-chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
                             </div>
                         </div>
                         <div class="filter-group">
@@ -111,6 +137,7 @@
                                 <select id="filter-supracategoria" class="filter-select">
                                     <option value="">Todas</option>
                                 </select>
+                                <svg class="select-chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
                             </div>
                         </div>
                         <div class="filter-group">
@@ -119,10 +146,13 @@
                                 <select id="filter-categoria" class="filter-select">
                                     <option value="">Todas</option>
                                 </select>
+                                <svg class="select-chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
                             </div>
                         </div>
                         <div class="filter-actions">
                             <button id="clear-filters-btn" class="btn-clear">
+                                <!-- SVG: X (Lucide) -->
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                                 <span>Limpiar</span>
                             </button>
                         </div>
@@ -134,9 +164,14 @@
             <section class="kpi-section" aria-label="Métricas clave">
                 <div class="kpi-grid">
                     <!-- Stock Card -->
-                    <div class="kpi-card clickable" id="card-stock">
-                        <div class="kpi-icon-container blue">
-                            <span class="kpi-icon">📊</span>
+                    <div class="kpi-card clickable kpi-blue" id="card-stock">
+                        <div class="kpi-icon-container blue" aria-hidden="true">
+                            <!-- SVG: BarChart2 (Lucide) -->
+                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="18" y1="20" x2="18" y2="10"></line>
+                                <line x1="12" y1="20" x2="12" y2="4"></line>
+                                <line x1="6" y1="20" x2="6" y2="14"></line>
+                            </svg>
                         </div>
                         <div class="kpi-content">
                             <p class="kpi-label">Stock Total</p>
@@ -150,9 +185,14 @@
                         </div>
                     </div>
                     <!-- Campos Card -->
-                    <div class="kpi-card clickable" id="card-campos">
-                        <div class="kpi-icon-container green">
-                            <span class="kpi-icon">🏞️</span>
+                    <div class="kpi-card clickable kpi-green" id="card-campos">
+                        <div class="kpi-icon-container green" aria-hidden="true">
+                            <!-- SVG: Layers (Lucide) -->
+                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                                <polyline points="2 17 12 22 22 17"></polyline>
+                                <polyline points="2 12 12 17 22 12"></polyline>
+                            </svg>
                         </div>
                         <div class="kpi-content">
                             <p class="kpi-label">Campos Activos</p>
@@ -166,9 +206,14 @@
                         </div>
                     </div>
                     <!-- Rodeos Card -->
-                    <div class="kpi-card clickable" id="card-rodeos">
-                        <div class="kpi-icon-container orange">
-                            <span class="kpi-icon">🐄</span>
+                    <div class="kpi-card clickable kpi-amber" id="card-rodeos">
+                        <div class="kpi-icon-container orange" aria-hidden="true">
+                            <!-- SVG: Circle (Lucide, represents corrals/rodeos) -->
+                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <circle cx="12" cy="10" r="3"></circle>
+                                <path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"></path>
+                            </svg>
                         </div>
                         <div class="kpi-content">
                             <p class="kpi-label">Rodeos</p>
@@ -182,9 +227,13 @@
                         </div>
                     </div>
                     <!-- Categorías Card -->
-                    <div class="kpi-card clickable" id="card-categorias">
-                        <div class="kpi-icon-container purple">
-                            <span class="kpi-icon">📋</span>
+                    <div class="kpi-card clickable kpi-purple" id="card-categorias">
+                        <div class="kpi-icon-container purple" aria-hidden="true">
+                            <!-- SVG: Tag (Lucide) -->
+                            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path>
+                                <line x1="7" y1="7" x2="7.01" y2="7"></line>
+                            </svg>
                         </div>
                         <div class="kpi-content">
                             <p class="kpi-label">Categorías</p>
@@ -215,7 +264,12 @@
                         <canvas id="stock-chart"></canvas>
                     </div>
                     <div id="no-data-message" class="empty-state" style="display: none;">
-                        <span class="empty-icon">📂</span>
+                        <!-- SVG: FolderOpen (Lucide) -->
+                        <svg class="empty-icon" xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                            <line x1="12" y1="11" x2="12" y2="17"></line>
+                            <line x1="9" y1="14" x2="15" y2="14"></line>
+                        </svg>
                         <p>No se encontraron datos para los filtros seleccionados</p>
                     </div>
                 </div>
@@ -231,13 +285,20 @@
                     <h3 id="panel-title">Detalles</h3>
                     <p id="panel-subtitle" class="panel-subtitle">Explora todos los ítems disponibles</p>
                 </div>
-                <button id="close-panel" class="btn-close-panel" aria-label="Cerrar panel">&times;</button>
+                <button id="close-panel" class="btn-close-panel" aria-label="Cerrar panel">
+                    <!-- SVG: X (Lucide) -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
             </div>
 
             <div class="panel-search">
                 <div class="search-field">
-                    <span class="search-icon">🔍</span>
-                    <input type="text" id="panel-search-input" placeholder="Buscar por nombre...">
+                    <!-- SVG: Search (Lucide) -->
+                    <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input type="text" id="panel-search-input" placeholder="Buscar por nombre..." aria-label="Buscar ítem">
                 </div>
             </div>
 
