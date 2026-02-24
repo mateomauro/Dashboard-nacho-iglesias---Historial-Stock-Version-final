@@ -412,17 +412,10 @@ function calculateKPIs(data) {
 }
 
 function updateKPICards(kpis) {
-    // Formatear fecha para mostrar (DD/MM)
-    let dateSuffix = '';
-    if (kpis.latestDate) {
-        const [y, m, d] = kpis.latestDate.split('-');
-        dateSuffix = ` <small style="font-size: 0.7em; opacity: 0.8; font-weight: 400;">(al ${d}/${m})</small>`;
-    }
-
-    document.getElementById('kpi-stock').innerHTML = kpis.stockTotal.toLocaleString('es-AR');
-    document.getElementById('kpi-campos').innerHTML = kpis.camposCount + dateSuffix;
-    document.getElementById('kpi-rodeos').innerHTML = kpis.rodeosCount + dateSuffix;
-    document.getElementById('kpi-categorias').innerHTML = kpis.categoriasCount + dateSuffix;
+    document.getElementById('kpi-stock').textContent = kpis.stockTotal.toLocaleString('es-AR');
+    document.getElementById('kpi-campos').textContent = kpis.camposCount;
+    document.getElementById('kpi-rodeos').textContent = kpis.rodeosCount;
+    document.getElementById('kpi-categorias').textContent = kpis.categoriasCount;
 
     // Actualizar también el badge de arriba si existe
     const viewBadge = document.querySelector('.view-badge');
