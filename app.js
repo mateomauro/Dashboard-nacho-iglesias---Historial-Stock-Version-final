@@ -363,11 +363,30 @@ function calculateKPIs(data) {
         camposList: [],
         rodeosList: [],
         categoriasList: [],
-        supracategoriasList: []
+        supracategoriasList: [],
+        latestDate: null
     };
 
+    // Función auxiliar para normalizar la fecha a YYYY-MM-DD
+    const normalizeDate = (d) => {
+        if (!d) return null;
+        // Si es un objeto Date o un string ISO, extraemos solo la parte de la fecha
+        return d.toString().split('T')[0].split(' ')[0].trim();
+    };
+
+    // Identificar la fecha más reciente de forma segura
+    const allDates = data.map(item => normalizeDate(item.Fecha)).filter(Boolean);
+    const latestDate = allDates.length > 0 ? allDates.sort().reverse()[0] : null;
+
+    // Filtrar los datos: solo tomamos los registros que coincidan exactamente con el último día
+    const currentData = latestDate
+        ? data.filter(item => normalizeDate(item.Fecha) === latestDate)
+        : data;
+
+    console.log(`Análisis de KPIs: Total registros: ${data.length}, Fecha detectada: ${latestDate}, Registros actuales: ${currentData.length}`);
+
     const getCounts = (key) => {
-        const counts = data.reduce((acc, item) => {
+        const counts = currentData.reduce((acc, item) => {
             const val = item[key];
             if (val) {
                 acc[val] = (acc[val] || 0) + (item.Cantidad || 0);
@@ -376,26 +395,41 @@ function calculateKPIs(data) {
         }, {});
         return Object.entries(counts)
             .map(([name, count]) => ({ name, count }))
-            .sort((a, b) => b.count - a.count); // Most populated first
+            .sort((a, b) => b.count - a.count);
     };
 
     return {
-        stockTotal: data.reduce((sum, item) => sum + (item.Cantidad || 0), 0),
-        camposCount: [...new Set(data.map(item => item.Campo))].filter(Boolean).length,
-        rodeosCount: [...new Set(data.map(item => item.Rodeo))].filter(Boolean).length,
-        categoriasCount: [...new Set(data.map(item => item.Categoria))].filter(Boolean).length,
+        stockTotal: currentData.reduce((sum, item) => sum + (item.Cantidad || 0), 0),
+        camposCount: [...new Set(currentData.map(item => item.Campo))].filter(Boolean).length,
+        rodeosCount: [...new Set(currentData.map(item => item.Rodeo))].filter(Boolean).length,
+        categoriasCount: [...new Set(currentData.map(item => item.Categoria))].filter(Boolean).length,
         camposList: getCounts('Campo'),
         rodeosList: getCounts('Rodeo'),
         categoriasList: getCounts('Categoria'),
-        supracategoriasList: getCounts('Supracategoria')
+        supracategoriasList: getCounts('Supracategoria'),
+        latestDate: latestDate
     };
 }
 
 function updateKPICards(kpis) {
-    document.getElementById('kpi-stock').textContent = kpis.stockTotal.toLocaleString('es-AR');
-    document.getElementById('kpi-campos').textContent = kpis.camposCount;
-    document.getElementById('kpi-rodeos').textContent = kpis.rodeosCount;
-    document.getElementById('kpi-categorias').textContent = kpis.categoriasCount;
+    // Formatear fecha para mostrar (DD/MM)
+    let dateSuffix = '';
+    if (kpis.latestDate) {
+        const [y, m, d] = kpis.latestDate.split('-');
+        dateSuffix = ` <small style="font-size: 0.7em; opacity: 0.8; font-weight: 400;">(al ${d}/${m})</small>`;
+    }
+
+    document.getElementById('kpi-stock').innerHTML = kpis.stockTotal.toLocaleString('es-AR');
+    document.getElementById('kpi-campos').innerHTML = kpis.camposCount + dateSuffix;
+    document.getElementById('kpi-rodeos').innerHTML = kpis.rodeosCount + dateSuffix;
+    document.getElementById('kpi-categorias').innerHTML = kpis.categoriasCount + dateSuffix;
+
+    // Actualizar también el badge de arriba si existe
+    const viewBadge = document.querySelector('.view-badge');
+    if (viewBadge && kpis.latestDate) {
+        const [y, m, d] = kpis.latestDate.split('-');
+        viewBadge.textContent = `Stock Actual: ${d}/${m}`;
+    }
 
     // Helper to render summary as side panel trigger
     const renderSummary = (elementId, list, type, totalCount, displayTitle) => {
