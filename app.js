@@ -5,7 +5,9 @@ const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ===== GLOBAL STATE =====
 let chartInstance = null;
-let isInitialized = false; // Para evitar doble inicialización
+let isInitialized = false;
+let sessionTimeout = null; // Temporizador para el cierre automático
+const SESSION_DURATION = 60 * 60 * 1000; // 1 hora en milisegundos
 
 // ===== AUTHENTICATION (Supabase Auth) =====
 async function checkAuth() {
@@ -20,6 +22,10 @@ function updateUIForAuth(session) {
     if (session) {
         loginScreen.style.display = 'none';
         dashboard.style.display = 'block';
+
+        // --- Lógica de tiempo de expiración ---
+        manejarExpiracionSesion();
+
         if (!isInitialized) {
             initializeDashboard();
             isInitialized = true;
@@ -28,13 +34,44 @@ function updateUIForAuth(session) {
         loginScreen.style.display = 'flex';
         dashboard.style.display = 'none';
         isInitialized = false;
-        // Limpiar gráfico al cerrar sesión
+
+        // Limpiar temporizador y datos de sesión
+        if (sessionTimeout) clearTimeout(sessionTimeout);
+        localStorage.removeItem('session_start_time');
+
         if (chartInstance) {
             chartInstance.destroy();
             chartInstance = null;
         }
     }
 }
+
+function manejarExpiracionSesion() {
+    const now = Date.now();
+    let startTime = localStorage.getItem('session_start_time');
+
+    if (!startTime) {
+        startTime = now;
+        localStorage.setItem('session_start_time', startTime);
+    }
+
+    const elapsed = now - parseInt(startTime);
+    const remaining = SESSION_DURATION - elapsed;
+
+    if (sessionTimeout) clearTimeout(sessionTimeout);
+
+    if (remaining <= 0) {
+        console.log("Sesión expirada");
+        handleLogout();
+    } else {
+        // Programar el cierre de sesión para cuando se cumpla la hora
+        sessionTimeout = setTimeout(() => {
+            alert("Tu sesión ha expirado (1 hora de límite). Por seguridad, vuelve a iniciar sesión.");
+            handleLogout();
+        }, remaining);
+    }
+}
+
 
 async function handleLogin(event) {
     event.preventDefault();
