@@ -1103,33 +1103,54 @@ body {
 
     .matrix-table th,
     .matrix-table td {
-        font-size: 0.75rem;
-        padding: 6px 8px;
+        font-size: 0.7rem;
+        /* Reducido para mayor densidad de datos */
+        padding: 5px 6px;
+        /* Padding más ajustado */
+        line-height: 1.2;
     }
 
     .matrix-responsive {
-        max-height: 500px;
+        max-height: 450px;
+        scroll-snap-type: x mandatory;
+        /* Mejora la navegación táctil */
     }
 
+    .matrix-table td,
+    .matrix-table th {
+        scroll-snap-align: start;
+    }
+
+    /* En móviles muy pequeños, solo mantenemos Campo sticky para ganar espacio */
     .matrix-table th.col-campo,
     .matrix-table td.col-campo {
-        min-width: 80px;
-        padding-left: 6px;
-        padding-right: 6px;
+        min-width: 75px;
+        padding-left: 4px;
+        padding-right: 4px;
+        font-size: 0.65rem;
+        box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+        /* Sombra sutil para indicar separación */
     }
 
-    /* On narrow screens, un-stick the Rodeo column so we have more scrolling room */
     .matrix-table th.col-rodeo,
     .matrix-table td.col-rodeo {
         position: static;
-        min-width: auto;
+        /* Soltamos el rodeo en móvil para evitar que oculte datos */
+        min-width: 90px;
         border-right: 1px solid var(--border-strong);
-        z-index: 1;
     }
 
-    .header-supra th.col-sticky,
-    .header-cat th.col-sticky {
-        z-index: 25;
+    /* Reforzar visibilidad de totales en móvil */
+    .row-total-campo td,
+    .row-total-rodeo td {
+        background-color: #fff8f0 !important;
+        /* Tinte naranja muy suave */
+        border-top: 1.5px solid var(--border-strong);
+    }
+
+    .header-cat th {
+        top: 45px;
+        /* Ajuste por reducción de altura de celdas */
     }
 }
 
