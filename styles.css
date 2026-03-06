@@ -384,6 +384,68 @@ body {
     letter-spacing: -0.01em;
 }
 
+/* ===== VIEW SWITCHER ===== */
+.view-switcher-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: var(--space-lg);
+}
+
+.view-switcher {
+    display: inline-flex;
+    background: rgba(30, 64, 175, 0.05);
+    padding: 4px;
+    border-radius: var(--radius-lg);
+    border: 1px solid rgba(30, 64, 175, 0.1);
+}
+
+.view-tab {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 20px;
+    border-radius: var(--radius-md);
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    font-weight: 600;
+    font-family: var(--font-body);
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.view-tab:hover {
+    color: var(--primary);
+}
+
+.view-tab.active {
+    background: white;
+    color: var(--primary);
+    box-shadow: 0 2px 8px rgba(30, 64, 175, 0.12);
+}
+
+.view-panel {
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+.view-panel.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 /* ===== FILTER SECTION ===== */
 .filter-section {
     margin-bottom: var(--space-lg);
@@ -774,6 +836,361 @@ body {
     min-height: 320px;
 }
 
+/* ===== INFORME DATA TABLE ===== */
+.informe-section {
+    margin-bottom: var(--space-lg);
+}
+
+.btn-secondary {
+    background: white;
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    padding: 6px 12px;
+    border-radius: var(--radius-md);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    font-family: var(--font-body);
+    cursor: pointer;
+    transition: var(--transition);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.btn-secondary:hover {
+    background: var(--bg-card-hover);
+    color: var(--primary);
+    border-color: var(--input-border);
+}
+
+.table-container-card {
+    background: var(--bg-card);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border);
+    overflow: hidden;
+}
+
+.table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.data-table th,
+.data-table td {
+    padding: var(--space-sm) var(--space-md);
+}
+
+.data-table th {
+    background-color: rgba(30, 64, 175, 0.03);
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 2px solid var(--border);
+}
+
+.data-table td {
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border);
+}
+
+.data-table tbody tr {
+    transition: background-color 0.2s ease;
+}
+
+.data-table tbody tr:hover {
+    background-color: var(--bg-card-hover);
+}
+
+.data-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.text-right {
+    text-align: right;
+}
+
+/* Highlight specific columns like amount */
+.data-table td.qty-cell {
+    font-family: var(--font-heading);
+    font-weight: 600;
+    text-align: right;
+    color: var(--primary-dark);
+}
+
+.data-table td.date-cell {
+    color: var(--text-muted);
+}
+
+
+
+/* ===== MATRIX TABLE ===== */
+.matrix-section {
+    margin-bottom: var(--space-lg);
+}
+
+.matrix-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    max-height: 600px;
+}
+
+.matrix-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: center;
+    white-space: nowrap;
+    font-size: 0.8125rem;
+    color: var(--text-primary);
+    border: 1.5px solid var(--border-strong);
+}
+
+.matrix-table th,
+.matrix-table th,
+.matrix-table td {
+    padding: 10px 12px;
+    border: 1px solid var(--border-strong);
+    line-height: 1.5;
+}
+
+.matrix-table th {
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.matrix-table td {
+    font-family: var(--font-heading);
+}
+
+/* Headers */
+.header-supra th {
+    background-color: #a9d18e;
+    color: #1a4214;
+    border-bottom: 2px solid var(--border-strong);
+    position: sticky;
+    top: -1px;
+    z-index: 20;
+    height: 50px;
+    vertical-align: middle;
+}
+
+.header-cat th {
+    background-color: #e2f0d9;
+    color: #2e5926;
+    font-size: 0.7rem;
+    font-weight: 600;
+    border-bottom: 2px solid var(--border-strong);
+    position: sticky;
+    top: 49px;
+    /* Adjusted based on new supra height (50px - 1px) */
+    z-index: 19;
+}
+
+/* Sticky Columns for Campo & Rodeo */
+.matrix-table .col-sticky {
+    position: sticky;
+    z-index: 10;
+    text-align: left;
+    background-color: #ffffff;
+    /* Explicit plain bg */
+}
+
+/* Ensure corners stick over Both axes */
+.header-supra th.col-sticky {
+    z-index: 25;
+    background-color: #a9d18e;
+    /* Match supra row */
+}
+
+.header-cat th.col-sticky {
+    z-index: 25;
+    background-color: #e2f0d9;
+    /* Match cat row */
+}
+
+.matrix-table th.col-sticky {
+    color: var(--text-primary);
+}
+
+.matrix-table th.col-campo,
+.matrix-table td.col-campo {
+    left: 0;
+    min-width: 120px;
+    border-left: none;
+    /* Prevent left trailing border */
+}
+
+.matrix-table th.col-rodeo,
+.matrix-table td.col-rodeo {
+    left: 120px;
+    min-width: 140px;
+    border-right: 2px solid var(--border-strong);
+}
+
+.matrix-table th.col-totales {
+    background-color: #fff2cc;
+    color: #833c0c;
+    min-width: 90px;
+    white-space: normal;
+    /* Allow word wrap for Totales */
+    line-height: 1.1;
+}
+
+/* Clean up common row coloring to not overlap badly */
+.matrix-table tbody tr {
+    background-color: #ffffff;
+}
+
+/* Totales Column */
+.matrix-table .col-totales {
+    background-color: rgba(245, 158, 11, 0.15);
+    /* Amber tint */
+    font-weight: 700;
+    color: #92400e;
+}
+
+/* Row variations */
+.matrix-table tr.row-total-rodeo td {
+    background-color: #fce4d6 !important;
+    font-weight: 700;
+}
+
+.matrix-table tr.row-total-campo td {
+    background-color: #f8cbad !important;
+    font-weight: 700;
+    color: #b45309;
+}
+
+.matrix-table tr.row-total-general td,
+.matrix-table tr.row-total-general th {
+    background-color: #f29a59 !important;
+    color: white;
+    font-weight: 700;
+}
+
+/* Inherit the row color for sticky cells */
+.matrix-table tr.row-total-general th.col-sticky,
+.matrix-table tr.row-total-rodeo td.col-sticky,
+.matrix-table tr.row-total-campo td.col-sticky {
+    background-color: inherit !important;
+}
+
+/* Hover effect */
+.matrix-table tbody tr:hover td:not(.col-sticky) {
+    background-color: rgba(30, 64, 175, 0.04);
+}
+
+/* Highlight empty cells lightly */
+.matrix-table td:empty::after {
+    content: '';
+    display: block;
+}
+
+/* Mobile optimizations for Matrix Table */
+@media (max-width: 768px) {
+
+    .matrix-table th,
+    .matrix-table td {
+        font-size: 0.75rem;
+        padding: 6px 8px;
+    }
+
+    .matrix-responsive {
+        max-height: 500px;
+    }
+
+    .matrix-table th.col-campo,
+    .matrix-table td.col-campo {
+        min-width: 80px;
+        padding-left: 6px;
+        padding-right: 6px;
+    }
+
+    /* On narrow screens, un-stick the Rodeo column so we have more scrolling room */
+    .matrix-table th.col-rodeo,
+    .matrix-table td.col-rodeo {
+        position: static;
+        min-width: auto;
+        border-right: 1px solid var(--border-strong);
+        z-index: 1;
+    }
+
+    .header-supra th.col-sticky,
+    .header-cat th.col-sticky {
+        z-index: 25;
+    }
+}
+
+/* Matrix Fullscreen Mode */
+#view-matrix.fullscreen-mode {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    z-index: 99999 !important;
+    background-color: #f8fafc;
+    padding: var(--space-md) var(--space-xl);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transform: none !important;
+    /* CRITICAL: Break out of view-panel fadeIn transform */
+    animation: none !important;
+    /* CRITICAL: Prevent re-playing fadeIn */
+}
+
+body.fullscreen-active {
+    overflow: hidden !important;
+}
+
+#view-matrix.fullscreen-mode .matrix-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    margin-bottom: 0;
+}
+
+#view-matrix.fullscreen-mode .table-container-card {
+    flex: 1;
+    height: 100%;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 0;
+}
+
+#view-matrix.fullscreen-mode .matrix-responsive {
+    flex: 1;
+    max-height: none;
+    height: 100%;
+}
+
+.icon-minimize {
+    display: none;
+}
+
+#view-matrix.fullscreen-mode .icon-fullscreen {
+    display: none;
+}
+
+#view-matrix.fullscreen-mode .icon-minimize {
+    display: inline-block;
+}
+
 /* ===== LOADING & SKELETON ===== */
 .loading-overlay {
     position: fixed;
@@ -1079,6 +1496,158 @@ body {
     font-size: 0.8125rem;
     color: var(--text-muted);
     text-align: center;
+}
+
+/* ===== RESPONSIVE ===== */
+
+/* ===== DATE FILTER COMPONENT ===== */
+.filter-group--date {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2xs);
+}
+
+/* Mode pills (Período / Día / Rango) */
+.date-mode-pills {
+    display: flex;
+    gap: 4px;
+    background: var(--bg-main);
+    border: 1.5px solid var(--input-border);
+    border-radius: var(--radius-md);
+    padding: 3px;
+}
+
+.date-pill {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 5px 6px;
+    border: none;
+    border-radius: calc(var(--radius-md) - 3px);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+    font-weight: 600;
+    font-family: var(--font-body);
+    cursor: pointer;
+    transition: var(--transition);
+    white-space: nowrap;
+    letter-spacing: 0.02em;
+}
+
+.date-pill svg {
+    flex-shrink: 0;
+    opacity: 0.75;
+    transition: var(--transition);
+}
+
+.date-pill:hover:not(.active) {
+    background: rgba(30, 64, 175, 0.06);
+    color: var(--primary);
+}
+
+.date-pill.active {
+    background: var(--primary);
+    color: white;
+    box-shadow: 0 2px 8px rgba(30, 64, 175, 0.3);
+}
+
+.date-pill.active svg {
+    opacity: 1;
+}
+
+/* Input panel (shown conditionally) */
+.date-input-panel {
+    animation: fadeInPanel 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes fadeInPanel {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Native date input wrapper */
+.date-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.date-icon {
+    position: absolute;
+    left: 11px;
+    color: var(--text-muted);
+    pointer-events: none;
+    z-index: 1;
+}
+
+.filter-date-input {
+    width: 100%;
+    height: 42px;
+    padding: 0 var(--space-md) 0 32px;
+    border: 1.5px solid var(--input-border);
+    border-radius: var(--radius-md);
+    background-color: var(--bg-main);
+    font-size: 0.875rem;
+    font-family: var(--font-body);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: var(--transition);
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+.filter-date-input::-webkit-calendar-picker-indicator {
+    opacity: 0.5;
+    cursor: pointer;
+    padding-right: 4px;
+    transition: var(--transition);
+}
+
+.filter-date-input:hover {
+    border-color: var(--text-muted);
+    background: white;
+}
+
+.filter-date-input:focus {
+    outline: none;
+    border-color: var(--input-focus);
+    background: white;
+    box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
+}
+
+.filter-date-input:hover::-webkit-calendar-picker-indicator,
+.filter-date-input:focus::-webkit-calendar-picker-indicator {
+    opacity: 0.9;
+}
+
+/* Date range layout */
+.date-range-inputs {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.date-range-inputs .date-input-wrapper {
+    flex: 1;
+    min-width: 0;
+}
+
+.range-separator {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    font-weight: 700;
+    flex-shrink: 0;
+    line-height: 1;
 }
 
 /* ===== RESPONSIVE ===== */
