@@ -1009,15 +1009,15 @@ body {
 
 /* Ensure corners stick over Both axes */
 .header-supra th.col-sticky {
-    z-index: 25;
-    background-color: #a9d18e;
-    /* Match supra row */
+    z-index: 30;
+    background-color: #a9d18e !important;
+    color: #1a4214 !important;
 }
 
 .header-cat th.col-sticky {
-    z-index: 25;
-    background-color: #e2f0d9;
-    /* Match cat row */
+    z-index: 29;
+    background-color: #e2f0d9 !important;
+    color: #2e5926 !important;
 }
 
 .matrix-table th.col-sticky {
@@ -1082,9 +1082,15 @@ body {
 
 /* Inherit the row color for sticky cells */
 .matrix-table tr.row-total-general th.col-sticky,
-.matrix-table tr.row-total-rodeo td.col-sticky,
-.matrix-table tr.row-total-campo td.col-sticky {
-    background-color: inherit !important;
+.matrix-table tr.row-total-general td.col-sticky {
+    background-color: #f29a59 !important;
+    color: white !important;
+}
+
+.matrix-table tr.row-total-campo td.col-sticky,
+.matrix-table tr.row-total-rodeo td.col-sticky {
+    background-color: #f8cbad !important;
+    font-weight: 700;
 }
 
 /* Hover effect */
@@ -1124,20 +1130,35 @@ body {
     /* En móviles muy pequeños, solo mantenemos Campo sticky para ganar espacio */
     .matrix-table th.col-campo,
     .matrix-table td.col-campo {
-        min-width: 75px;
-        padding-left: 4px;
-        padding-right: 4px;
-        font-size: 0.65rem;
-        box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
-        /* Sombra sutil para indicar separación */
+        min-width: 85px;
+        padding-left: 6px;
+        padding-right: 6px;
+        font-size: 0.7rem;
+        box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+        white-space: normal;
+        /* Permitir que Campo se quiebre en 2 líneas si es necesario */
+        left: 0 !important;
+        position: sticky !important;
+        z-index: 10;
     }
 
     .matrix-table th.col-rodeo,
     .matrix-table td.col-rodeo {
-        position: static;
-        /* Soltamos el rodeo en móvil para evitar que oculte datos */
-        min-width: 90px;
-        border-right: 1px solid var(--border-strong);
+        position: static !important;
+        min-width: 100px;
+        border-right: 1.5px solid var(--border-strong);
+    }
+
+    .matrix-table th.col-totales {
+        background-color: #fff2cc !important;
+        position: static !important;
+        min-width: 80px;
+        font-weight: 700;
+    }
+
+    .header-supra th.col-sticky,
+    .header-cat th.col-sticky {
+        z-index: 40;
     }
 
     /* Reforzar visibilidad de totales en móvil */
