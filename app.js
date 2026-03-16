@@ -1479,9 +1479,13 @@ function exportMatrixToPDF() {
             }
         });
 
-        // Generate the PDF as a Blob and force download (more robust for mobile)
-        const pdfBlob = doc.output('blob');
+        // Generate the PDF as an array buffer first
+        const pdfArrayBuffer = doc.output('arraybuffer');
+        
+        // Create a blob with a generic binary MIME type to force download on iOS/Safari
+        const pdfBlob = new Blob([pdfArrayBuffer], { type: 'application/octet-stream' });
         const pdfUrl = URL.createObjectURL(pdfBlob);
+        
         const downloadLink = document.createElement('a');
         const fileName = 'Stock_' + (snapshotDate || 'export') + '.pdf';
         
