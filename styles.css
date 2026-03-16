@@ -1017,7 +1017,7 @@ body {
     position: sticky;
     top: -1px;
     z-index: 20;
-    height: 58px;
+    height: 62px; /* Aumentado para dar aire a las 2 líneas */
     vertical-align: middle;
 }
 
@@ -1028,8 +1028,7 @@ body {
     font-weight: 600;
     border-bottom: 2px solid var(--border-strong);
     position: sticky;
-    top: 57px;
-    /* Adjusted based on new supra height (58px - 1px) */
+    top: 61px; /* Match height supra - 1px */
     z-index: 19;
 }
 
@@ -1040,6 +1039,19 @@ body {
     text-align: left;
     background-color: #ffffff;
     /* Explicit plain bg */
+}
+
+/* Filler cells to replace rowspan=2 in Safari Mobile */
+.matrix-table th.header-filler {
+    border-top: none !important;
+    height: 30px; /* Force minimum height to fill the gap of the second row */
+}
+.matrix-table th.header-filler.col-campo, 
+.matrix-table th.header-filler.col-rodeo {
+    background-color: #a9d18e !important;
+}
+.matrix-table th.header-filler.col-totales {
+    background-color: #fff2cc !important;
 }
 
 /* Ensure corners stick over Both axes */
@@ -1081,6 +1093,16 @@ body {
     white-space: normal;
     /* Allow word wrap for Totales */
     line-height: 1.1;
+    position: sticky;
+    left: 260px; /* 120px (Campo) + 140px (Rodeo) */
+    z-index: 30; /* Keep it on top of rolling content */
+}
+
+.matrix-table td.col-totales {
+    position: sticky;
+    left: 260px;
+    z-index: 10;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05); /* Slight shadow to separate from scrolling content */
 }
 
 /* Clean up common row coloring to not overlap badly */
@@ -1162,33 +1184,47 @@ body {
         scroll-snap-align: start;
     }
 
-    /* En móviles muy pequeños, solo mantenemos Campo sticky para ganar espacio */
+    /* En móviles muy pequeños, reducimos anchos pero MANTENEMOS ambas columnas sticky para no quebrar celdas colspan="2" */
     .matrix-table th.col-campo,
     .matrix-table td.col-campo {
-        min-width: 85px;
+        min-width: 75px;
         padding-left: 6px;
-        padding-right: 6px;
+        padding-right: 4px;
         font-size: 0.7rem;
-        box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
         white-space: normal;
-        /* Permitir que Campo se quiebre en 2 líneas si es necesario */
         left: 0 !important;
         position: sticky !important;
         z-index: 10;
+        border-right: none;
     }
 
     .matrix-table th.col-rodeo,
     .matrix-table td.col-rodeo {
-        position: static !important;
-        min-width: 100px;
+        min-width: 85px;
+        padding-left: 4px;
+        padding-right: 8px;
+        white-space: normal;
+        left: 75px !important;
+        position: sticky !important;
+        z-index: 10;
         border-right: 1.5px solid var(--border-strong);
     }
 
-    .matrix-table th.col-totales {
+    .matrix-table th.col-totales,
+    .matrix-table td.col-totales {
         background-color: #fff2cc !important;
-        position: static !important;
-        min-width: 80px;
+        min-width: 70px;
+        padding-left: 4px;
+        padding-right: 4px;
         font-weight: 700;
+        left: 160px !important; /* 75px (Campo) + 85px (Rodeo) */
+        position: sticky !important;
+        z-index: 10;
+        box-shadow: 3px 0 5px rgba(0, 0, 0, 0.08); /* Sombra solo en la columna derecha fija */
+    }
+
+    .matrix-table th.col-totales {
+        z-index: 40 !important; /* Cabecera sobre las filas regulares */
     }
 
     .header-supra th.col-sticky,
@@ -1204,9 +1240,12 @@ body {
         border-top: 1.5px solid var(--border-strong);
     }
 
+    .header-supra th {
+        height: 52px !important; /* Altura compacta para móvil */
+    }
+
     .header-cat th {
-        top: 45px;
-        /* Ajuste por reducción de altura de celdas */
+        top: 51px !important; /* Altura supra - 1px */
     }
 }
 

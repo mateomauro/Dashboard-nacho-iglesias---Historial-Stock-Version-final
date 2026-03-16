@@ -1163,17 +1163,20 @@ function updateMatrixTable(data) {
         );
     });
 
-    // 6. Build Dynamic THEAD with supra subtotals
+    // 6. Build Dynamic THEAD with supra subtotals (sin rowspan="2" para evitar bugs de Safari Mobile con position: sticky)
     let theadHtml = `
         <tr class="header-supra">
-            <th rowspan="2" class="col-sticky col-campo">Campo</th>
-            <th rowspan="2" class="col-sticky col-rodeo">Rodeo</th>
-            <th rowspan="2" class="col-totales">TOTALES</th>
+            <th class="col-sticky col-campo">Campo</th>
+            <th class="col-sticky col-rodeo">Rodeo</th>
+            <th class="col-sticky col-totales" style="z-index: 50;">TOTALES</th>
             ${Object.keys(visibleStructure).map(supra => `
                 <th colspan="${visibleStructure[supra].length}" class="group-${supra.toLowerCase()}">${supra}<br><span class="supra-subtotal">${supraSubtotals[supra].toLocaleString('es-AR')}</span></th>
             `).join('')}
         </tr>
         <tr class="header-cat">
+            <th class="col-sticky col-campo header-filler" style="border-top: none;"></th>
+            <th class="col-sticky col-rodeo header-filler" style="border-top: none;"></th>
+            <th class="col-sticky col-totales header-filler" style="border-top: none; z-index: 49;"></th>
             ${Object.keys(visibleStructure).flatMap(supra =>
         visibleStructure[supra].map(cat => `<th class="sub-cat group-${supra.toLowerCase()}">${cat}</th>`)
     ).join('')}
@@ -1184,7 +1187,7 @@ function updateMatrixTable(data) {
     let existingThead = matrixTable.querySelector('thead');
     if (existingThead) existingThead.innerHTML = theadHtml;
 
-    // Header Totals Injection
+    // Header Totals Injection (redundante tras el cambio, pero lo dejamos seguro)
     const totalsHeader = document.querySelector('.header-supra .col-totales');
     if (totalsHeader) totalsHeader.innerHTML = `TOTALES`;
 
@@ -1274,7 +1277,7 @@ function exportMatrixToPDF() {
         if (parts.length === 3) fechaTabla = parts[2] + '/' + parts[1] + '/' + parts[0];
     }
 
-    // Fecha de impresion
+    // Fecha de impresión
     let fechaImpresion = fechaTabla;
     if (activeDateMode === 'single') {
         const v = document.getElementById('filter-date-single').value;
@@ -1314,7 +1317,7 @@ function exportMatrixToPDF() {
         const pageHeight = doc.internal.pageSize.getHeight();
         const margin = 5;
 
-        // 1. Filtrar solo categorias con datos
+        // 1. Filtrar solo categorías con datos
         const activeCatsStructure = {};
         Object.keys(visibleStructure).forEach(supra => {
             const activeCats = visibleStructure[supra].filter(cat => (generalTotals[cat] || 0) > 0);
@@ -1332,7 +1335,7 @@ function exportMatrixToPDF() {
         else if (numCatCols > 10) fontSize = 6;
         const catColWidth = Math.min(18, Math.max(9, availableWidth / Math.max(numCatCols, 1)));
 
-        // 3. Header de pagina
+        // 3. Header de página
         doc.setFontSize(11);
         doc.setTextColor(30, 41, 59);
         doc.setFont('helvetica', 'bold');
@@ -1475,7 +1478,7 @@ function exportMatrixToPDF() {
             didDrawPage: function(data) {
                 doc.setFontSize(7);
                 doc.setTextColor(148, 163, 184);
-                doc.text('Pagina ' + data.pageNumber, pageWidth / 2, pageHeight - 3, { align: 'center' });
+                doc.text('Página ' + data.pageNumber, pageWidth / 2, pageHeight - 3, { align: 'center' });
             }
         });
 
