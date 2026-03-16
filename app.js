@@ -1,4 +1,4 @@
-﻿// ===== SUPABASE CONFIGURATION =====
+// ===== SUPABASE CONFIGURATION =====
 const SUPABASE_URL = 'https://urquftsucjtqxogjjhhx.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVycXVmdHN1Y2p0cXhvZ2pqaGh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4NjQ3MjMsImV4cCI6MjA4NzQ0MDcyM30.GJu2UaYFqQAXMgghQY1Xag62tKecNG8hk-nzsvYKdzE';
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -1479,7 +1479,22 @@ function exportMatrixToPDF() {
             }
         });
 
-        doc.save('Stock_' + (snapshotDate || 'export') + '.pdf');
+        // Generate the PDF as a Blob and force download (more robust for mobile)
+        const pdfBlob = doc.output('blob');
+        const pdfUrl = URL.createObjectURL(pdfBlob);
+        const downloadLink = document.createElement('a');
+        const fileName = 'Stock_' + (snapshotDate || 'export') + '.pdf';
+        
+        downloadLink.href = pdfUrl;
+        downloadLink.download = fileName;
+        
+        // Append to body, click, and cleanup
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        
+        // Free up memory
+        setTimeout(() => URL.revokeObjectURL(pdfUrl), 100);
 
     } catch (err) {
         console.error('Error generating PDF:', err);
