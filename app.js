@@ -1,4 +1,4 @@
-// ===== SUPABASE CONFIGURATION =====
+﻿// ===== SUPABASE CONFIGURATION =====
 const SUPABASE_URL = 'https://urquftsucjtqxogjjhhx.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVycXVmdHN1Y2p0cXhvZ2pqaGh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4NjQ3MjMsImV4cCI6MjA4NzQ0MDcyM30.GJu2UaYFqQAXMgghQY1Xag62tKecNG8hk-nzsvYKdzE';
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -343,9 +343,30 @@ async function initializeFilters() {
     try {
         showLoading(true);
         hideError();
+
+
         // Fetch unique values for all filters from Historial_Stock table
-        const { data, error } = await supabaseClient.from('Historial_Stock').select('Campo, Rodeo, Supracategoria, Categoria');
+        const { data, error } = await supabaseClient.from('Historial_Stock').select('Campo, Rodeo, Supracategoria, Categoria, Fecha');
         if (error) throw error;
+
+        // Fechas únicas y ordenadas
+        const fechasRaw = [...new Set(data.map(item => item.Fecha))].filter(Boolean);
+        const fechasDesc = fechasRaw.sort((a, b) => new Date(b) - new Date(a));
+        const fechaSelect = document.getElementById('filter-date-single');
+        if (fechaSelect && fechaSelect.tagName === 'SELECT') {
+            fechaSelect.innerHTML = '<option value="">Seleccione una fecha...</option>';
+            fechasDesc.forEach(value => {
+                const option = document.createElement('option');
+                option.value = value;
+                const parts = value.split('-');
+                option.textContent = parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : value;
+                fechaSelect.appendChild(option);
+            });
+            // Try to set to latest date automatically
+            if (fechasDesc.length > 0) {
+                fechaSelect.value = fechasDesc[0];
+            }
+        }
 
         // Use capitalized column names
         const campos = [...new Set(data.map(item => item.Campo))].filter(Boolean).sort();
@@ -422,7 +443,7 @@ async function fetchFilteredData() {
         if (supracategoriaValue) query = query.eq('Supracategoria', supracategoriaValue);
         if (categoriaValue) query = query.eq('Categoria', categoriaValue);
 
-        // Date Filtering — supports 3 modes
+        // Date Filtering â€” supports 3 modes
         if (activeDateMode === 'preset') {
             const dateFilter = document.getElementById('filter-date').value;
             if (dateFilter !== 'all') {
@@ -815,8 +836,12 @@ function updateInformeTable(data) {
         return;
     }
 
-    // Sort by Date descending (most recent first)
-    const sortedData = [...data].sort((a, b) => new Date(b.Fecha) - new Date(a.Fecha));
+    // Sort by Date descending (most recent first), then Campo, then Rodeo
+    const sortedData = [...data].sort((a, b) => {
+        if (a.Fecha !== b.Fecha) return (b.Fecha || '').localeCompare(a.Fecha || '');
+        if (a.Campo !== b.Campo) return (a.Campo || '').localeCompare(b.Campo || '');
+        return (a.Rodeo || '').localeCompare(b.Rodeo || '');
+    });
 
     let html = '';
     sortedData.forEach(item => {
@@ -1019,11 +1044,22 @@ function initExportMatrixExcelButton() {
 
 // ===== MATRIX TABLE LOGIC =====
 const MATRIX_STRUCTURE = {
-    "RECRIA": ['Tro Indif', 'Tro', 'Tra', 'Tro Pie', 'Vaq repo'],
-    "VIENTRES": ['Vaq 1er 15', 'Vaq 1er 20', 'Vaq 2do 15', 'Vaq 2do 20', 'Vaca 3er', 'Vaca Gen', 'CUT'],
+    "RECRIA": ['Tro Indif', 'Tro', 'Tra', 'Tro Pie'],
+    "VIENTRES": ['Vaq repo', 'Vaq 1er 15', 'Vaq 1er 20', 'Vaq 2do 15', 'Vaq 2do 20', 'Vaca 3er', 'Vaca Gen', 'CUT'],
     "TOROS": ['Toro', 'Torito'],
     "INVERNADA": ['Vaca Venta', 'MEJ', 'Novillo', 'Novillito', 'Vaq Venta']
 };
+
+// Categorias que se muestran como columna pero NO suman en ninguna supracategoria
+const CATS_EXCLUDED_FROM_SUPRA_TOTAL = ['Tro Indif'];
+
+// Columnas vacias siempre ocultas
+const hideEmptyCategories = true;
+
+// Global variables for PDF export
+let windowMatrixData = null;
+let windowVisibleStructure = null;
+let windowInitialStructure = null;
 
 function updateMatrixTable(data) {
     const matrixTable = document.getElementById('matrix-table');
@@ -1041,27 +1077,100 @@ function updateMatrixTable(data) {
     const filterSupra = document.getElementById('filter-supracategoria').value;
     const filterCat = document.getElementById('filter-categoria').value;
 
-    // 1. Identify which columns to show
-    let visibleStructure = {};
+    // 1. Identify initial columns (respecting filters, before empty-column hiding)
+    let initialStructure = {};
     Object.keys(MATRIX_STRUCTURE).forEach(supra => {
         if (!filterSupra || filterSupra === supra) {
             const cats = MATRIX_STRUCTURE[supra].filter(c => !filterCat || filterCat === c);
             if (cats.length > 0) {
-                visibleStructure[supra] = cats;
+                initialStructure[supra] = cats;
             }
+        }
+    });
+
+    const ALL_INITIAL_CATS = Object.values(initialStructure).flat();
+
+    // 2. Find Latest Snapshot Date
+    let maxDateStr = data[0].Fecha;
+    let maxDate = new Date(maxDateStr);
+    data.forEach(item => {
+        const d = new Date(item.Fecha);
+        if (d > maxDate) {
+            maxDate = d;
+            maxDateStr = item.Fecha;
+        }
+    });
+
+    const latestData = data.filter(item => item.Fecha === maxDateStr);
+
+    // Store snapshot date globally for PDF export
+    window.matrixSnapshotDate = maxDateStr;
+
+    // 3. Transform Data to Matrix (using ALL initial categories)
+    const matrix = {};
+    const generalTotals = { Total: 0 };
+    ALL_INITIAL_CATS.forEach(c => generalTotals[c] = 0);
+
+    latestData.forEach(row => {
+        const campo = (row.Campo || 'Sin Campo').trim();
+        const rodeo = (row.Rodeo || 'Sin Rodeo').trim();
+        const cat = (row.Categoria || '').trim();
+        const cant = Number(row.Cantidad) || 0;
+
+        if (!matrix[campo]) {
+            matrix[campo] = { totalCampo: 0, rodeos: {}, campoTotals: {} };
+            ALL_INITIAL_CATS.forEach(c => matrix[campo].campoTotals[c] = 0);
+        }
+        if (!matrix[campo].rodeos[rodeo]) {
+            matrix[campo].rodeos[rodeo] = { Total: 0 };
+            ALL_INITIAL_CATS.forEach(c => matrix[campo].rodeos[rodeo][c] = 0);
+        }
+
+        // Match category ignoring case
+        const matchedColumn = ALL_INITIAL_CATS.find(c => c.toLowerCase() === cat.toLowerCase());
+
+        if (matchedColumn) {
+            matrix[campo].rodeos[rodeo][matchedColumn] += cant;
+            matrix[campo].rodeos[rodeo].Total += cant;
+            matrix[campo].campoTotals[matchedColumn] += cant;
+            matrix[campo].totalCampo += cant;
+            generalTotals[matchedColumn] += cant;
+            generalTotals.Total += cant;
+        }
+    });
+
+    // 4. Apply empty-column hiding if toggle is enabled
+    let visibleStructure = {};
+    Object.keys(initialStructure).forEach(supra => {
+        let cats;
+        if (hideEmptyCategories) {
+            cats = initialStructure[supra].filter(cat => generalTotals[cat] > 0);
+        } else {
+            cats = [...initialStructure[supra]];
+        }
+        if (cats.length > 0) {
+            visibleStructure[supra] = cats;
         }
     });
 
     const ALL_VISIBLE_CATS = Object.values(visibleStructure).flat();
 
-    // 2. Build Dynamic THEAD
+    // 5. Calculate supra subtotals (excluye cats sin suma en supra)
+    const supraSubtotals = {};
+    Object.keys(visibleStructure).forEach(supra => {
+        supraSubtotals[supra] = (initialStructure[supra] || []).reduce(
+            (sum, cat) => CATS_EXCLUDED_FROM_SUPRA_TOTAL.includes(cat) ? sum : sum + (generalTotals[cat] || 0), 0
+        );
+    });
+
+    // 6. Build Dynamic THEAD with supra subtotals
     let theadHtml = `
         <tr class="header-supra">
             <th rowspan="2" class="col-sticky col-campo">Campo</th>
             <th rowspan="2" class="col-sticky col-rodeo">Rodeo</th>
             <th rowspan="2" class="col-totales">TOTALES</th>
             ${Object.keys(visibleStructure).map(supra => `
-                <th colspan="${visibleStructure[supra].length}" class="group-${supra.toLowerCase()}">${supra}</th>
+                <th colspan="${visibleStructure[supra].length}" class="group-${supra.toLowerCase()}">${supra}<br><span class="supra-subtotal">${supraSubtotals[supra].toLocaleString('es-AR')}</span></th>
             `).join('')}
         </tr>
         <tr class="header-cat">
@@ -1075,60 +1184,11 @@ function updateMatrixTable(data) {
     let existingThead = matrixTable.querySelector('thead');
     if (existingThead) existingThead.innerHTML = theadHtml;
 
-    // 3. Filtering Data for Latest Snapshot
-    let maxDateStr = data[0].Fecha;
-    let maxDate = new Date(maxDateStr);
-    data.forEach(item => {
-        const d = new Date(item.Fecha);
-        if (d > maxDate) {
-            maxDate = d;
-            maxDateStr = item.Fecha;
-        }
-    });
-
-    const latestData = data.filter(item => item.Fecha === maxDateStr);
-
     // Header Totals Injection
-    const totalAnimales = latestData.reduce((sum, item) => sum + (item.Cantidad || 0), 0);
-    const uniqueRodeos = new Set(latestData.map(item => item.Rodeo));
-    const totalRodeos = uniqueRodeos.size;
     const totalsHeader = document.querySelector('.header-supra .col-totales');
     if (totalsHeader) totalsHeader.innerHTML = `TOTALES`;
 
-    // 4. Transform Data to Matrix
-    const matrix = {};
-    const generalTotals = { Total: 0 };
-    ALL_VISIBLE_CATS.forEach(c => generalTotals[c] = 0);
-
-    latestData.forEach(row => {
-        const campo = (row.Campo || 'Sin Campo').trim();
-        const rodeo = (row.Rodeo || 'Sin Rodeo').trim();
-        const cat = (row.Categoria || '').trim();
-        const cant = Number(row.Cantidad) || 0;
-
-        if (!matrix[campo]) {
-            matrix[campo] = { totalCampo: 0, rodeos: {}, campoTotals: {} };
-            ALL_VISIBLE_CATS.forEach(c => matrix[campo].campoTotals[c] = 0);
-        }
-        if (!matrix[campo].rodeos[rodeo]) {
-            matrix[campo].rodeos[rodeo] = { Total: 0 };
-            ALL_VISIBLE_CATS.forEach(c => matrix[campo].rodeos[rodeo][c] = 0);
-        }
-
-        // Match category ignoring case
-        const matchedColumn = ALL_VISIBLE_CATS.find(c => c.toLowerCase() === cat.toLowerCase());
-
-        if (matchedColumn) {
-            matrix[campo].rodeos[rodeo][matchedColumn] += cant;
-            matrix[campo].rodeos[rodeo].Total += cant;
-            matrix[campo].campoTotals[matchedColumn] += cant;
-            matrix[campo].totalCampo += cant;
-            generalTotals[matchedColumn] += cant;
-            generalTotals.Total += cant;
-        }
-    });
-
-    // 5. Build Dynamic TBODY
+    // 7. Build Dynamic TBODY
     let html = '';
 
     // Row: General
@@ -1181,6 +1241,261 @@ function updateMatrixTable(data) {
     });
 
     tbody.innerHTML = html;
+
+    // Store data globally for PDF export
+    windowMatrixData = { matrix, generalTotals };
+    windowVisibleStructure = visibleStructure;
+    windowInitialStructure = initialStructure;
+}
+
+// ===== PDF EXPORT =====
+function exportMatrixToPDF() {
+    if (!windowMatrixData || !windowMatrixData.matrix || !windowVisibleStructure) {
+        alert('No hay datos en la tabla para exportar.');
+        return;
+    }
+
+    const { matrix, generalTotals } = windowMatrixData;
+    const visibleStructure = windowVisibleStructure;
+
+    // Calculate supra subtotals (excluye cats sin suma en supra)
+    const supraSubtotals = {};
+    Object.keys(visibleStructure).forEach(supra => {
+        supraSubtotals[supra] = (windowInitialStructure[supra] || []).reduce(
+            (sum, cat) => CATS_EXCLUDED_FROM_SUPRA_TOTAL.includes(cat) ? sum : sum + (generalTotals[cat] || 0), 0
+        );
+    });
+
+    // Snapshot date
+    const snapshotDate = window.matrixSnapshotDate;
+    let fechaTabla = 'Sin datos';
+    if (snapshotDate) {
+        const parts = snapshotDate.split('-');
+        if (parts.length === 3) fechaTabla = parts[2] + '/' + parts[1] + '/' + parts[0];
+    }
+
+    // Fecha de impresion
+    let fechaImpresion = fechaTabla;
+    if (activeDateMode === 'single') {
+        const v = document.getElementById('filter-date-single').value;
+        if (v) { const p = v.split('-'); fechaImpresion = p[2] + '/' + p[1] + '/' + p[0]; }
+    } else if (activeDateMode === 'range') {
+        const f = document.getElementById('filter-date-from').value;
+        const t = document.getElementById('filter-date-to').value;
+        if (f && t) {
+            const pf = f.split('-'); const pt = t.split('-');
+            fechaImpresion = pf[2] + '/' + pf[1] + '/' + pf[0] + ' - ' + pt[2] + '/' + pt[1] + '/' + pt[0];
+        }
+    }
+
+    // Active filters summary
+    const filterCampo = document.getElementById('filter-campo').value;
+    const filterRodeo = document.getElementById('filter-rodeo').value;
+    const filterSupra = document.getElementById('filter-supracategoria').value;
+    const filterCateg  = document.getElementById('filter-categoria').value;
+    const filtrosActivos = [];
+    if (filterCampo) filtrosActivos.push('Campo: ' + filterCampo);
+    if (filterRodeo) filtrosActivos.push('Rodeo: ' + filterRodeo);
+    if (filterSupra) filtrosActivos.push('Supra: ' + filterSupra);
+    if (filterCateg)  filtrosActivos.push('Cat: ' + filterCateg);
+
+    // Button loading state
+    const pdfBtn = document.getElementById('btn-export-matrix-pdf');
+    const originalBtnHtml = pdfBtn ? pdfBtn.innerHTML : '';
+    if (pdfBtn) {
+        pdfBtn.disabled = true;
+        pdfBtn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="spin-icon"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg> Generando...';
+    }
+
+    try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+        const pageWidth  = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const margin = 5;
+
+        // 1. Filtrar solo categorias con datos
+        const activeCatsStructure = {};
+        Object.keys(visibleStructure).forEach(supra => {
+            const activeCats = visibleStructure[supra].filter(cat => (generalTotals[cat] || 0) > 0);
+            if (activeCats.length > 0) activeCatsStructure[supra] = activeCats;
+        });
+        const ALL_ACTIVE_CATS = Object.values(activeCatsStructure).flat();
+        const suprasWithData  = Object.keys(activeCatsStructure);
+        const numCatCols      = ALL_ACTIVE_CATS.length;
+
+        // 2. Anchos y font adaptativo
+        const fixedWidth     = 25 + 22 + 13;
+        const availableWidth = pageWidth - (margin * 2) - fixedWidth;
+        let fontSize = 7;
+        if (numCatCols > 14) fontSize = 5.5;
+        else if (numCatCols > 10) fontSize = 6;
+        const catColWidth = Math.min(18, Math.max(9, availableWidth / Math.max(numCatCols, 1)));
+
+        // 3. Header de pagina
+        doc.setFontSize(11);
+        doc.setTextColor(30, 41, 59);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Planilla de Stock', margin, 8);
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.text('Fecha del stock: ' + fechaImpresion, margin, 13.5);
+        const hoy = new Date();
+        const hoyStr = String(hoy.getDate()).padStart(2,'0') + '/' + String(hoy.getMonth()+1).padStart(2,'0') + '/' + hoy.getFullYear();
+        doc.setFontSize(7.5);
+        doc.setTextColor(100, 116, 139);
+        doc.text('Generado: ' + hoyStr, pageWidth - margin, 8, { align: 'right' });
+
+        let tableStartY = 18;
+        if (filtrosActivos.length > 0) {
+            doc.setFontSize(7.5);
+            doc.setTextColor(71, 85, 105);
+            doc.text('Filtros: ' + filtrosActivos.join(' · '), margin, tableStartY);
+            tableStartY += 4;
+        }
+
+        // 4. Colores
+        const C_SUPRA_BG  = [169, 209, 142];
+        const C_SUPRA_TXT = [26, 66, 20];
+        const C_CAT_BG    = [226, 240, 217];
+        const C_CAT_TXT   = [46, 89, 38];
+        const C_TOT_BG    = [255, 242, 204];
+        const C_GEN_BG    = [242, 154, 89];
+        const C_GEN_TXT   = [255, 255, 255];
+        const C_CAMPO_BG  = [252, 228, 214];
+        const C_STICK_BG  = [248, 250, 252];
+        const C_WHITE     = [255, 255, 255];
+        const C_DARK      = [30, 41, 59];
+
+        // 5. HEAD de 2 niveles
+        const headRow1 = [
+            { content: 'Campo', rowSpan: 2, styles: { fillColor: C_STICK_BG, fontStyle: 'bold', halign: 'left',   cellWidth: 25, textColor: C_DARK } },
+            { content: 'Rodeo', rowSpan: 2, styles: { fillColor: C_STICK_BG, fontStyle: 'bold', halign: 'left',   cellWidth: 22, textColor: C_DARK } },
+            { content: 'TOT.',  rowSpan: 2, styles: { fillColor: C_TOT_BG,   fontStyle: 'bold', halign: 'center', cellWidth: 13, textColor: C_DARK } }
+        ];
+        suprasWithData.forEach(supra => {
+            const cats = activeCatsStructure[supra];
+            const sub  = supraSubtotals[supra] || 0;
+            headRow1.push({
+                content: supra + '  (' + sub.toLocaleString('es-AR') + ')',
+                colSpan: cats.length,
+                styles: { fillColor: C_SUPRA_BG, textColor: C_SUPRA_TXT, fontStyle: 'bold', halign: 'center', overflow: 'linebreak' }
+            });
+        });
+
+        const headRow2 = [];
+        suprasWithData.forEach(supra => {
+            activeCatsStructure[supra].forEach(cat => {
+                headRow2.push({
+                    content: cat,
+                    styles: { fillColor: C_CAT_BG, textColor: C_CAT_TXT, fontStyle: 'normal', halign: 'center', cellWidth: catColWidth }
+                });
+            });
+        });
+
+        // 6. BODY
+        const body = [];
+
+        // Fila GENERAL
+        const generalRow = [
+            { content: 'GENERAL', styles: { fontStyle: 'bold', fillColor: C_GEN_BG, textColor: C_GEN_TXT, halign: 'left' } },
+            { content: '',         styles: { fillColor: C_GEN_BG, textColor: C_GEN_TXT } },
+            { content: generalTotals.Total.toLocaleString('es-AR'), styles: { fontStyle: 'bold', fillColor: C_GEN_BG, textColor: C_GEN_TXT, halign: 'center' } }
+        ];
+        ALL_ACTIVE_CATS.forEach(cat => {
+            const v = generalTotals[cat] || 0;
+            generalRow.push({ content: v > 0 ? v.toLocaleString('es-AR') : '', styles: { fillColor: C_GEN_BG, textColor: C_GEN_TXT, halign: 'center' } });
+        });
+        body.push(generalRow);
+
+        // Campos y Rodeos
+        const sortedCampos = Object.keys(matrix).sort();
+        sortedCampos.forEach(campoName => {
+            const campoData    = matrix[campoName];
+            const sortedRodeos = Object.keys(campoData.rodeos).sort();
+            let firstRodeo     = true;
+
+            sortedRodeos.forEach(rodeoName => {
+                const rd  = campoData.rodeos[rodeoName];
+                const row = [
+                    { content: firstRodeo ? campoName : '', styles: { fontStyle: firstRodeo ? 'bold' : 'normal', halign: 'left', fillColor: C_WHITE } },
+                    { content: rodeoName, styles: { halign: 'left', fillColor: C_WHITE } },
+                    { content: rd.Total > 0 ? rd.Total.toLocaleString('es-AR') : '', styles: { fontStyle: 'bold', fillColor: C_TOT_BG, halign: 'center' } }
+                ];
+                ALL_ACTIVE_CATS.forEach(cat => {
+                    const v = rd[cat] || 0;
+                    row.push({ content: v > 0 ? v.toLocaleString('es-AR') : '', styles: { halign: 'center', fillColor: C_WHITE } });
+                });
+                body.push(row);
+                firstRodeo = false;
+            });
+
+            // Total campo
+            const ctRow = [
+                { content: '',      styles: { fillColor: C_CAMPO_BG } },
+                { content: 'Total', styles: { fontStyle: 'bold', halign: 'right', fillColor: C_CAMPO_BG } },
+                { content: campoData.totalCampo > 0 ? campoData.totalCampo.toLocaleString('es-AR') : '', styles: { fontStyle: 'bold', fillColor: C_CAMPO_BG, halign: 'center' } }
+            ];
+            ALL_ACTIVE_CATS.forEach(cat => {
+                const v = campoData.campoTotals[cat] || 0;
+                ctRow.push({ content: v > 0 ? v.toLocaleString('es-AR') : '', styles: { fontStyle: 'bold', fillColor: C_CAMPO_BG, halign: 'center' } });
+            });
+            body.push(ctRow);
+        });
+
+        // 7. Render tabla
+        doc.autoTable({
+            head: [headRow1, headRow2],
+            body: body,
+            startY: tableStartY,
+            theme: 'grid',
+            styles: {
+                fontSize: fontSize,
+                cellPadding: { top: 1.5, right: 2, bottom: 1.5, left: 2 },
+                valign: 'middle',
+                textColor: C_DARK,
+                lineColor: [203, 213, 225],
+                lineWidth: 0.2
+            },
+            headStyles: {
+                fontSize: fontSize,
+                fillColor: C_SUPRA_BG,
+                textColor: C_SUPRA_TXT,
+                fontStyle: 'bold',
+                halign: 'center',
+                valign: 'middle'
+            },
+            columnStyles: {
+                0: { cellWidth: 25, halign: 'left' },
+                1: { cellWidth: 22, halign: 'left' },
+                2: { cellWidth: 13, halign: 'center', fontStyle: 'bold', fillColor: C_TOT_BG }
+            },
+            margin: { top: 5, bottom: 8, left: margin, right: margin },
+            tableWidth: 'auto',
+            didDrawPage: function(data) {
+                doc.setFontSize(7);
+                doc.setTextColor(148, 163, 184);
+                doc.text('Pagina ' + data.pageNumber, pageWidth / 2, pageHeight - 3, { align: 'center' });
+            }
+        });
+
+        doc.save('Stock_' + (snapshotDate || 'export') + '.pdf');
+
+    } catch (err) {
+        console.error('Error generating PDF:', err);
+        alert('Error al generar el PDF. Intente nuevamente.');
+    } finally {
+        if (pdfBtn) {
+            pdfBtn.disabled = false;
+            pdfBtn.innerHTML = originalBtnHtml;
+        }
+    }
+}
+
+function initExportMatrixPDFButton() {
+    const btn = document.getElementById('btn-export-matrix-pdf');
+    if (!btn) return;
+    btn.addEventListener('click', exportMatrixToPDF);
 }
 
 // ===== DASHBOARD INITIALIZATION =====
@@ -1219,6 +1534,7 @@ async function initializeDashboard() {
     setupViewSwitcher();
     initExportCSVButton();
     initExportMatrixExcelButton();
+    initExportMatrixPDFButton();
     initFullscreenMatrixButton();
 
     // Initialize chart if not exists
