@@ -9,6 +9,17 @@ let isInitialized = false;
 let sessionTimeout = null; // Temporizador para el cierre automático
 const SESSION_DURATION = 60 * 60 * 1000; // 1 hora en milisegundos
 
+// MATRIX CONFIGURATION
+const MATRIX_STRUCTURE = {
+    "RECRIA": ['Tro Indif', 'Tro', 'Tra', 'Tro Pie'],
+    "VIENTRES": ['Vaq repo', 'Vaq 1er 15', 'Vaq 1er 20', 'Vaq 2do 15', 'Vaq 2do 20', 'Vaca 3er', 'Vaca Gen', 'CUT'],
+    "TOROS": ['Toro', 'Torito'],
+    "INVERNADA": ['Vaca Venta', 'MEJ', 'Novillo', 'Novillito', 'Vaq Venta']
+};
+
+// Categorias que se muestran como columna pero NO suman en ninguna supracategoria ni total general
+const CATS_EXCLUDED_FROM_SUPRA_TOTAL = ['Tro Indif'];
+
 // ===== AUTHENTICATION (Supabase Auth) =====
 async function checkAuth() {
     const { data: { session } } = await supabaseClient.auth.getSession();
@@ -486,7 +497,25 @@ async function fetchFilteredData() {
         const { data, error } = await query;
         if (error) throw error;
 
-        if (!data || data.length === 0) {
+        let processedData = data || [];
+        
+        // --- Eliminar posibles duplicados exactos (mismo dia, campo, rodeo, supra, categoria) ---
+        if (processedData.length > 0) {
+            const seen = new Set();
+            const deduplicated = [];
+            // Recorrer de atras hacia adelante para quedarse con la ultima entrada de cada grupo
+            for (let i = processedData.length - 1; i >= 0; i--) {
+                const item = processedData[i];
+                const key = `${item.Fecha}|${item.Campo}|${item.Rodeo}|${item.Supracategoria}|${item.Categoria}`;
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    deduplicated.unshift(item); // insert at start to maintain order
+                }
+            }
+            processedData = deduplicated;
+        }
+
+        if (processedData.length === 0) {
             document.getElementById('no-data-message').style.display = 'flex';
             document.getElementById('informe-empty-state').style.display = 'flex';
             document.getElementById('matrix-empty-state').style.display = 'flex';
@@ -499,7 +528,7 @@ async function fetchFilteredData() {
             document.getElementById('matrix-empty-state').style.display = 'none';
             document.querySelector('.table-responsive:not(.matrix-responsive)').style.display = 'block';
             document.querySelector('.matrix-responsive').style.display = 'block';
-            updateDashboard(data);
+            updateDashboard(processedData);
         }
 
         hideLoading();
@@ -581,8 +610,13 @@ function calculateKPIs(data) {
             .sort((a, b) => b.count - a.count);
     };
 
+    const isExcluded = (cat) => CATS_EXCLUDED_FROM_SUPRA_TOTAL.some(c => c.toLowerCase() === (cat || '').toLowerCase());
+
     return {
-        stockTotal: currentData.reduce((sum, item) => sum + (item.Cantidad || 0), 0),
+        stockTotal: currentData.reduce((sum, item) => {
+            if (isExcluded(item.Categoria)) return sum;
+            return sum + (item.Cantidad || 0);
+        }, 0),
         camposCount: [...new Set(currentData.map(item => item.Campo))].filter(Boolean).length,
         rodeosCount: [...new Set(currentData.map(item => item.Rodeo))].filter(Boolean).length,
         categoriasCount: [...new Set(currentData.map(item => item.Categoria))].filter(Boolean).length,
@@ -788,8 +822,11 @@ function updateChart(data) {
         return;
     }
 
+    const isExcluded = (cat) => CATS_EXCLUDED_FROM_SUPRA_TOTAL.some(c => c.toLowerCase() === (cat || '').toLowerCase());
+
     // Group data by Fecha and sum Cantidads
     const groupedData = data.reduce((acc, item) => {
+        if (isExcluded(item.Categoria)) return acc;
         const fecha = item.Fecha;
         if (!acc[fecha]) {
             acc[fecha] = 0;
@@ -1042,17 +1079,6 @@ function initExportMatrixExcelButton() {
     });
 }
 
-// ===== MATRIX TABLE LOGIC =====
-const MATRIX_STRUCTURE = {
-    "RECRIA": ['Tro Indif', 'Tro', 'Tra', 'Tro Pie'],
-    "VIENTRES": ['Vaq repo', 'Vaq 1er 15', 'Vaq 1er 20', 'Vaq 2do 15', 'Vaq 2do 20', 'Vaca 3er', 'Vaca Gen', 'CUT'],
-    "TOROS": ['Toro', 'Torito'],
-    "INVERNADA": ['Vaca Venta', 'MEJ', 'Novillo', 'Novillito', 'Vaq Venta']
-};
-
-// Categorias que se muestran como columna pero NO suman en ninguna supracategoria
-const CATS_EXCLUDED_FROM_SUPRA_TOTAL = ['Tro Indif'];
-
 // Columnas vacias siempre ocultas
 const hideEmptyCategories = true;
 
@@ -1131,11 +1157,15 @@ function updateMatrixTable(data) {
 
         if (matchedColumn) {
             matrix[campo].rodeos[rodeo][matchedColumn] += cant;
-            matrix[campo].rodeos[rodeo].Total += cant;
             matrix[campo].campoTotals[matchedColumn] += cant;
-            matrix[campo].totalCampo += cant;
             generalTotals[matchedColumn] += cant;
-            generalTotals.Total += cant;
+
+            const isExcluded = CATS_EXCLUDED_FROM_SUPRA_TOTAL.some(c => c.toLowerCase() === matchedColumn.toLowerCase());
+            if (!isExcluded) {
+                matrix[campo].rodeos[rodeo].Total += cant;
+                matrix[campo].totalCampo += cant;
+                generalTotals.Total += cant;
+            }
         }
     });
 
