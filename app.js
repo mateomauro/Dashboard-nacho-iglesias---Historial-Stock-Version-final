@@ -498,7 +498,7 @@ async function fetchFilteredData() {
         if (error) throw error;
 
         let processedData = data || [];
-        
+
         // --- Eliminar posibles duplicados exactos (mismo dia, campo, rodeo, supra, categoria) ---
         if (processedData.length > 0) {
             const seen = new Set();
@@ -1325,12 +1325,12 @@ function exportMatrixToPDF() {
     const filterCampo = document.getElementById('filter-campo').value;
     const filterRodeo = document.getElementById('filter-rodeo').value;
     const filterSupra = document.getElementById('filter-supracategoria').value;
-    const filterCateg  = document.getElementById('filter-categoria').value;
+    const filterCateg = document.getElementById('filter-categoria').value;
     const filtrosActivos = [];
     if (filterCampo) filtrosActivos.push('Campo: ' + filterCampo);
     if (filterRodeo) filtrosActivos.push('Rodeo: ' + filterRodeo);
     if (filterSupra) filtrosActivos.push('Supra: ' + filterSupra);
-    if (filterCateg)  filtrosActivos.push('Cat: ' + filterCateg);
+    if (filterCateg) filtrosActivos.push('Cat: ' + filterCateg);
 
     // Button loading state
     const pdfBtn = document.getElementById('btn-export-matrix-pdf');
@@ -1343,7 +1343,7 @@ function exportMatrixToPDF() {
     try {
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-        const pageWidth  = doc.internal.pageSize.getWidth();
+        const pageWidth = doc.internal.pageSize.getWidth();
         const pageHeight = doc.internal.pageSize.getHeight();
         const margin = 5;
 
@@ -1354,11 +1354,11 @@ function exportMatrixToPDF() {
             if (activeCats.length > 0) activeCatsStructure[supra] = activeCats;
         });
         const ALL_ACTIVE_CATS = Object.values(activeCatsStructure).flat();
-        const suprasWithData  = Object.keys(activeCatsStructure);
-        const numCatCols      = ALL_ACTIVE_CATS.length;
+        const suprasWithData = Object.keys(activeCatsStructure);
+        const numCatCols = ALL_ACTIVE_CATS.length;
 
         // 2. Anchos y font adaptativo
-        const fixedWidth     = 25 + 22 + 13;
+        const fixedWidth = 25 + 22 + 13;
         const availableWidth = pageWidth - (margin * 2) - fixedWidth;
         let fontSize = 7;
         if (numCatCols > 14) fontSize = 5.5;
@@ -1374,7 +1374,7 @@ function exportMatrixToPDF() {
         doc.setFont('helvetica', 'normal');
         doc.text('Fecha del stock: ' + fechaImpresion, margin, 13.5);
         const hoy = new Date();
-        const hoyStr = String(hoy.getDate()).padStart(2,'0') + '/' + String(hoy.getMonth()+1).padStart(2,'0') + '/' + hoy.getFullYear();
+        const hoyStr = String(hoy.getDate()).padStart(2, '0') + '/' + String(hoy.getMonth() + 1).padStart(2, '0') + '/' + hoy.getFullYear();
         doc.setFontSize(7.5);
         doc.setTextColor(100, 116, 139);
         doc.text('Generado: ' + hoyStr, pageWidth - margin, 8, { align: 'right' });
@@ -1388,27 +1388,27 @@ function exportMatrixToPDF() {
         }
 
         // 4. Colores
-        const C_SUPRA_BG  = [169, 209, 142];
+        const C_SUPRA_BG = [169, 209, 142];
         const C_SUPRA_TXT = [26, 66, 20];
-        const C_CAT_BG    = [226, 240, 217];
-        const C_CAT_TXT   = [46, 89, 38];
-        const C_TOT_BG    = [255, 242, 204];
-        const C_GEN_BG    = [242, 154, 89];
-        const C_GEN_TXT   = [255, 255, 255];
-        const C_CAMPO_BG  = [252, 228, 214];
-        const C_STICK_BG  = [248, 250, 252];
-        const C_WHITE     = [255, 255, 255];
-        const C_DARK      = [30, 41, 59];
+        const C_CAT_BG = [226, 240, 217];
+        const C_CAT_TXT = [46, 89, 38];
+        const C_TOT_BG = [255, 242, 204];
+        const C_GEN_BG = [242, 154, 89];
+        const C_GEN_TXT = [255, 255, 255];
+        const C_CAMPO_BG = [252, 228, 214];
+        const C_STICK_BG = [248, 250, 252];
+        const C_WHITE = [255, 255, 255];
+        const C_DARK = [30, 41, 59];
 
         // 5. HEAD de 2 niveles
         const headRow1 = [
-            { content: 'Campo', rowSpan: 2, styles: { fillColor: C_STICK_BG, fontStyle: 'bold', halign: 'left',   cellWidth: 25, textColor: C_DARK } },
-            { content: 'Rodeo', rowSpan: 2, styles: { fillColor: C_STICK_BG, fontStyle: 'bold', halign: 'left',   cellWidth: 22, textColor: C_DARK } },
-            { content: 'TOT.',  rowSpan: 2, styles: { fillColor: C_TOT_BG,   fontStyle: 'bold', halign: 'center', cellWidth: 13, textColor: C_DARK } }
+            { content: 'Campo', rowSpan: 2, styles: { fillColor: C_STICK_BG, fontStyle: 'bold', halign: 'left', cellWidth: 25, textColor: C_DARK } },
+            { content: 'Rodeo', rowSpan: 2, styles: { fillColor: C_STICK_BG, fontStyle: 'bold', halign: 'left', cellWidth: 22, textColor: C_DARK } },
+            { content: 'TOT.', rowSpan: 2, styles: { fillColor: C_TOT_BG, fontStyle: 'bold', halign: 'center', cellWidth: 13, textColor: C_DARK } }
         ];
         suprasWithData.forEach(supra => {
             const cats = activeCatsStructure[supra];
-            const sub  = supraSubtotals[supra] || 0;
+            const sub = supraSubtotals[supra] || 0;
             headRow1.push({
                 content: supra + '  (' + sub.toLocaleString('es-AR') + ')',
                 colSpan: cats.length,
@@ -1432,7 +1432,7 @@ function exportMatrixToPDF() {
         // Fila GENERAL
         const generalRow = [
             { content: 'GENERAL', styles: { fontStyle: 'bold', fillColor: C_GEN_BG, textColor: C_GEN_TXT, halign: 'left' } },
-            { content: '',         styles: { fillColor: C_GEN_BG, textColor: C_GEN_TXT } },
+            { content: '', styles: { fillColor: C_GEN_BG, textColor: C_GEN_TXT } },
             { content: generalTotals.Total.toLocaleString('es-AR'), styles: { fontStyle: 'bold', fillColor: C_GEN_BG, textColor: C_GEN_TXT, halign: 'center' } }
         ];
         ALL_ACTIVE_CATS.forEach(cat => {
@@ -1444,12 +1444,12 @@ function exportMatrixToPDF() {
         // Campos y Rodeos
         const sortedCampos = Object.keys(matrix).sort();
         sortedCampos.forEach(campoName => {
-            const campoData    = matrix[campoName];
+            const campoData = matrix[campoName];
             const sortedRodeos = Object.keys(campoData.rodeos).sort();
-            let firstRodeo     = true;
+            let firstRodeo = true;
 
             sortedRodeos.forEach(rodeoName => {
-                const rd  = campoData.rodeos[rodeoName];
+                const rd = campoData.rodeos[rodeoName];
                 const row = [
                     { content: firstRodeo ? campoName : '', styles: { fontStyle: firstRodeo ? 'bold' : 'normal', halign: 'left', fillColor: C_WHITE } },
                     { content: rodeoName, styles: { halign: 'left', fillColor: C_WHITE } },
@@ -1465,7 +1465,7 @@ function exportMatrixToPDF() {
 
             // Total campo
             const ctRow = [
-                { content: '',      styles: { fillColor: C_CAMPO_BG } },
+                { content: '', styles: { fillColor: C_CAMPO_BG } },
                 { content: 'Total', styles: { fontStyle: 'bold', halign: 'right', fillColor: C_CAMPO_BG } },
                 { content: campoData.totalCampo > 0 ? campoData.totalCampo.toLocaleString('es-AR') : '', styles: { fontStyle: 'bold', fillColor: C_CAMPO_BG, halign: 'center' } }
             ];
@@ -1505,7 +1505,13 @@ function exportMatrixToPDF() {
             },
             margin: { top: 5, bottom: 8, left: margin, right: margin },
             tableWidth: 'auto',
-            didDrawPage: function(data) {
+            didParseCell: function (hookData) {
+                // Columnas numéricas (índice >= 2) en filas del body: +3pt
+                if (hookData.section === 'body' && hookData.column.index >= 2) {
+                    hookData.cell.styles.fontSize = fontSize + 1;
+                }
+            },
+            didDrawPage: function (data) {
                 doc.setFontSize(7);
                 doc.setTextColor(148, 163, 184);
                 doc.text('Página ' + data.pageNumber, pageWidth / 2, pageHeight - 3, { align: 'center' });
@@ -1514,22 +1520,22 @@ function exportMatrixToPDF() {
 
         // Generate the PDF as an array buffer first
         const pdfArrayBuffer = doc.output('arraybuffer');
-        
+
         // Create a blob with a generic binary MIME type to force download on iOS/Safari
         const pdfBlob = new Blob([pdfArrayBuffer], { type: 'application/octet-stream' });
         const pdfUrl = URL.createObjectURL(pdfBlob);
-        
+
         const downloadLink = document.createElement('a');
         const fileName = 'Stock_' + (snapshotDate || 'export') + '.pdf';
-        
+
         downloadLink.href = pdfUrl;
         downloadLink.download = fileName;
-        
+
         // Append to body, click, and cleanup
         document.body.appendChild(downloadLink);
         downloadLink.click();
         document.body.removeChild(downloadLink);
-        
+
         // Free up memory
         setTimeout(() => URL.revokeObjectURL(pdfUrl), 100);
 
