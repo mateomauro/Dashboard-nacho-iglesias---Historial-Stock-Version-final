@@ -5,18 +5,14 @@ import autoTable from 'jspdf-autotable';
 import { supabaseClient } from './src/lib/supabase.js';
 import { setAuthUiHandler } from './src/lib/authBridge.js';
 
-autoTable(jsPDF);
-
 // ===== GLOBAL STATE =====
 let chartInstance = null;
 let isInitialized = false;
 let sessionTimeout = null; // Temporizador para el cierre automático
 const SESSION_DURATION = 60 * 60 * 1000; // 1 hora en milisegundos
-let allCategories = [];
-let allSupracategorias = [];
-let categoriesBySupra = {};
-let suprasByCategory = {};
 let activeFetchRequestId = 0;
+// Filas del último snapshot con Cantidad > 0 (base para los desplegables dependientes).
+let snapshotPositiveData = [];
 
 // MATRIX CONFIGURATION
 const MATRIX_STRUCTURE = {
@@ -339,8 +335,9 @@ async function initializeFilters() {
         hideError();
 
 
-        // Fetch unique values for all filters from Historial_Stock table
-        const { data, error } = await supabaseClient.from('Historial_Stock').select('Campo, Rodeo, Supracategoria, Categoria, Fecha');
+        // Fetch unique values for all filters from Historial_Stock table.
+        // Cantidad is required to filter out rows with 0 (no stock) so they don't show in dropdowns.
+        const { data, error } = await supabaseClient.from('Historial_Stock').select('Campo, Rodeo, Supracategoria, Categoria, Fecha, Cantidad');
         if (error) throw error;
 
         // Fechas únicas y ordenadas
@@ -362,74 +359,15 @@ async function initializeFilters() {
             }
         }
 
-        // Use capitalized column names
-        const campos = [...new Set(data.map(item => item.Campo))].filter(Boolean).sort();
-        const rodeos = [...new Set(data.map(item => item.Rodeo))].filter(Boolean).sort();
-        const supracategorias = [...new Set(data.map(item => item.Supracategoria))].filter(Boolean).sort();
-        const categorias = [...new Set(data.map(item => item.Categoria))].filter(Boolean).sort();
+        // Tomar la última foto (snapshot) y guardar solo filas con stock > 0.
+        const latestDate = fechasDesc[0];
+        const snapshotData = latestDate
+            ? data.filter(item => item.Fecha === latestDate)
+            : data;
+        snapshotPositiveData = snapshotData.filter(item => (Number(item.Cantidad) || 0) > 0);
 
-        // Build relation maps to support dependent filters
-        categoriesBySupra = {};
-        suprasByCategory = {};
-        data.forEach(item => {
-            const supra = item.Supracategoria;
-            const categoria = item.Categoria;
-            if (!supra || !categoria) return;
-
-            if (!categoriesBySupra[supra]) categoriesBySupra[supra] = new Set();
-            categoriesBySupra[supra].add(categoria);
-
-            if (!suprasByCategory[categoria]) suprasByCategory[categoria] = new Set();
-            suprasByCategory[categoria].add(supra);
-        });
-        Object.keys(categoriesBySupra).forEach(supra => {
-            categoriesBySupra[supra] = [...categoriesBySupra[supra]].sort();
-        });
-        Object.keys(suprasByCategory).forEach(categoria => {
-            suprasByCategory[categoria] = [...suprasByCategory[categoria]].sort();
-        });
-
-        // Enforce canonical matrix relations for filter UX consistency
-        Object.entries(MATRIX_STRUCTURE).forEach(([supra, cats]) => {
-            if (!categoriesBySupra[supra]) categoriesBySupra[supra] = [];
-            const mergedCats = new Set([...(categoriesBySupra[supra] || []), ...cats]);
-            categoriesBySupra[supra] = [...mergedCats].sort();
-
-            cats.forEach(cat => {
-                if (!suprasByCategory[cat]) suprasByCategory[cat] = [];
-                const mergedSupras = new Set([...(suprasByCategory[cat] || []), supra]);
-                suprasByCategory[cat] = [...mergedSupras].sort();
-            });
-        });
-
-        allCategories = categorias;
-        allSupracategorias = supracategorias;
-
-        // Populate Campo filter
-        const campoSelect = document.getElementById('filter-campo');
-        campoSelect.innerHTML = '<option value="">Todos los campos</option>';
-        campos.forEach(value => {
-            const option = document.createElement('option');
-            option.value = value;
-            option.textContent = value;
-            campoSelect.appendChild(option);
-        });
-
-        // Populate Rodeo filter
-        const rodeoSelect = document.getElementById('filter-rodeo');
-        rodeoSelect.innerHTML = '<option value="">Todos los rodeos</option>';
-        rodeos.forEach(value => {
-            const option = document.createElement('option');
-            option.value = value;
-            option.textContent = value;
-            rodeoSelect.appendChild(option);
-        });
-
-        // Populate Supracategoria filter
-        updateSupracategoriaFilterOptions();
-
-        // Populate Categoria filter
-        updateCategoryFilterOptions();
+        // Poblar los 4 desplegables dependientes a partir del snapshot.
+        refreshAllFilterDropdowns();
 
         hideLoading();
     } catch (error) {
@@ -439,66 +377,62 @@ async function initializeFilters() {
     }
 }
 
-function updateCategoryFilterOptions() {
-    const supraValue = document.getElementById('filter-supracategoria').value;
-    const categoriaSelect = document.getElementById('filter-categoria');
-    const previousCategory = categoriaSelect.value;
+// ==== Filtros dependientes (cascada en 4 dimensiones) ====
+// Devuelve los valores únicos disponibles para `targetField` aplicando todos los
+// otros filtros activos sobre el snapshot con stock > 0.
+function getAvailableFilterValues(targetField, filters) {
+    const set = new Set();
+    snapshotPositiveData.forEach(item => {
+        for (const key of Object.keys(filters)) {
+            if (key === targetField) continue;
+            const value = filters[key];
+            if (value && item[key] !== value) return;
+        }
+        const v = item[targetField];
+        if (v) set.add(v);
+    });
+    return [...set].sort();
+}
 
-    const visibleCategories = supraValue
-        ? (categoriesBySupra[supraValue] || [])
-        : allCategories;
+function repopulateFilterSelect(selectId, allLabel, options) {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+    const previous = select.value;
 
-    categoriaSelect.innerHTML = '<option value="">Todas las categorías</option>';
-    visibleCategories.forEach(value => {
+    select.innerHTML = `<option value="">${allLabel}</option>`;
+    options.forEach(value => {
         const option = document.createElement('option');
         option.value = value;
         option.textContent = value;
-        categoriaSelect.appendChild(option);
+        select.appendChild(option);
     });
 
-    // Keep previous selection only if still valid after supra change
-    if (previousCategory && visibleCategories.includes(previousCategory)) {
-        categoriaSelect.value = previousCategory;
+    if (previous && options.includes(previous)) {
+        select.value = previous;
     } else {
-        categoriaSelect.value = '';
+        select.value = '';
     }
 }
 
-function updateSupracategoriaFilterOptions() {
-    const categoriaValue = document.getElementById('filter-categoria').value;
-    const supracategoriaSelect = document.getElementById('filter-supracategoria');
-    const previousSupra = supracategoriaSelect.value;
-
-    const visibleSupras = categoriaValue
-        ? (suprasByCategory[categoriaValue] || [])
-        : allSupracategorias;
-
-    supracategoriaSelect.innerHTML = '<option value="">Todas las supracategorías</option>';
-    visibleSupras.forEach(value => {
-        const option = document.createElement('option');
-        option.value = value;
-        option.textContent = value;
-        supracategoriaSelect.appendChild(option);
-    });
-
-    if (previousSupra && visibleSupras.includes(previousSupra)) {
-        supracategoriaSelect.value = previousSupra;
-    } else if (categoriaValue && visibleSupras.length === 1) {
-        // UX: auto-select the only valid supra for selected category
-        supracategoriaSelect.value = visibleSupras[0];
-    } else {
-        supracategoriaSelect.value = '';
-    }
+function getCurrentFilterRelations() {
+    return {
+        Campo: document.getElementById('filter-campo').value,
+        Rodeo: document.getElementById('filter-rodeo').value,
+        Supracategoria: document.getElementById('filter-supracategoria').value,
+        Categoria: document.getElementById('filter-categoria').value,
+    };
 }
 
-function handleSupracategoriaChange() {
-    updateCategoryFilterOptions();
-    fetchFilteredData();
+function refreshAllFilterDropdowns() {
+    const filters = getCurrentFilterRelations();
+    repopulateFilterSelect('filter-campo', 'Todos los campos', getAvailableFilterValues('Campo', filters));
+    repopulateFilterSelect('filter-rodeo', 'Todos los rodeos', getAvailableFilterValues('Rodeo', filters));
+    repopulateFilterSelect('filter-supracategoria', 'Todas las supracategorías', getAvailableFilterValues('Supracategoria', filters));
+    repopulateFilterSelect('filter-categoria', 'Todas las categorías', getAvailableFilterValues('Categoria', filters));
 }
 
-function handleCategoriaChange() {
-    updateSupracategoriaFilterOptions();
-    updateCategoryFilterOptions();
+function handleRelationFilterChange() {
+    refreshAllFilterDropdowns();
     fetchFilteredData();
 }
 
@@ -513,6 +447,11 @@ function getCurrentFilterValues() {
         dateFromValue: document.getElementById('filter-date-from').value,
         dateToValue: document.getElementById('filter-date-to').value
     };
+}
+
+function hasEntityFilterSelection(filters) {
+    return !!(filters.campoValue || filters.rodeoValue
+        || filters.supracategoriaValue || filters.categoriaValue);
 }
 
 function applyBasicFiltersToQuery(query, filters) {
@@ -611,25 +550,49 @@ async function fetchFilteredData() {
 
         const filters = getCurrentFilterValues();
 
-        // Query Historial_Stock table
-        let query = supabaseClient.from('Historial_Stock').select('*');
-        query = applyBasicFiltersToQuery(query, filters);
-        query = applyDateFiltersToQuery(query, filters);
+        // Query con filtros de entidad + fechas; si aplica, segunda query: mismo rango de fechas pero sin Campo/Rodeo/Supra/Categoría (línea de "total" en el gráfico).
+        let qFiltered = supabaseClient.from('Historial_Stock').select('*');
+        qFiltered = applyBasicFiltersToQuery(qFiltered, filters);
+        qFiltered = applyDateFiltersToQuery(qFiltered, filters);
 
-        const { data, error } = await query;
-        if (error) throw error;
+        let data;
+        let dataBaseline = null;
+        if (hasEntityFilterSelection(filters)) {
+            const baseOnlyFilters = {
+                ...filters,
+                campoValue: '',
+                rodeoValue: '',
+                supracategoriaValue: '',
+                categoriaValue: '',
+            };
+            let qBase = supabaseClient.from('Historial_Stock').select('*');
+            qBase = applyBasicFiltersToQuery(qBase, baseOnlyFilters);
+            qBase = applyDateFiltersToQuery(qBase, baseOnlyFilters);
+            const [rFiltered, rBase] = await Promise.all([qFiltered, qBase]);
+            if (rFiltered.error) throw rFiltered.error;
+            if (rBase.error) throw rBase.error;
+            data = rFiltered.data;
+            dataBaseline = rBase.data;
+        } else {
+            const { data: d, error } = await qFiltered;
+            if (error) throw error;
+            data = d;
+        }
 
         // If a newer filter request was triggered, ignore this stale response.
         if (requestId !== activeFetchRequestId) return;
 
         const processedData = deduplicateStockRows(data || []);
+        const baselineData = dataBaseline
+            ? deduplicateStockRows(dataBaseline)
+            : null;
 
         if (processedData.length === 0) {
             updateDataViewVisibility(false);
             updateDashboard([]);
         } else {
             updateDataViewVisibility(true);
-            updateDashboard(processedData);
+            updateDashboard(processedData, baselineData);
         }
 
     } catch (error) {
@@ -665,8 +628,7 @@ function clearFilters() {
     document.getElementById('filter-rodeo').value = '';
     document.getElementById('filter-supracategoria').value = '';
     document.getElementById('filter-categoria').value = '';
-    updateSupracategoriaFilterOptions();
-    updateCategoryFilterOptions();
+    refreshAllFilterDropdowns();
 
     fetchFilteredData();
 }
@@ -826,6 +788,76 @@ function setupCardClicks() {
 }
 
 // ===== CHART LOGIC =====
+function buildDailyStockTotalsByFecha(data) {
+    const isExcluded = (cat) => CATS_EXCLUDED_FROM_SUPRA_TOTAL.some(c => c.toLowerCase() === (cat || '').toLowerCase());
+    return (data || []).reduce((acc, item) => {
+        if (isExcluded(item.Categoria)) return acc;
+        const fecha = item.Fecha;
+        if (!fecha) return acc;
+        acc[fecha] = (acc[fecha] || 0) + (Number(item.Cantidad) || 0);
+        return acc;
+    }, {});
+}
+
+function formatNumberAR(n) {
+    return Number(n || 0).toLocaleString('es-AR');
+}
+
+// Plugin: dibuja un badge con el valor exacto en el último punto visible de cada serie.
+const lastValueBadgePlugin = {
+    id: 'lastValueBadge',
+    afterDatasetsDraw(chart) {
+        const { ctx } = chart;
+        chart.data.datasets.forEach((dataset, datasetIndex) => {
+            const meta = chart.getDatasetMeta(datasetIndex);
+            if (meta.hidden || !meta.data || meta.data.length === 0) return;
+
+            let lastIdx = -1;
+            for (let i = dataset.data.length - 1; i >= 0; i--) {
+                if (dataset.data[i] != null) { lastIdx = i; break; }
+            }
+            if (lastIdx < 0) return;
+
+            const point = meta.data[lastIdx];
+            if (!point) return;
+            const value = dataset.data[lastIdx];
+            const text = formatNumberAR(value);
+
+            ctx.save();
+            ctx.font = '600 11px "Fira Sans", system-ui, sans-serif';
+            const padX = 8;
+            const padY = 4;
+            const textWidth = ctx.measureText(text).width;
+            const boxW = textWidth + padX * 2;
+            const boxH = 20;
+            const x = point.x + 10;
+            const y = point.y - boxH / 2;
+
+            const fill = dataset.borderColor;
+            ctx.fillStyle = fill;
+            const r = 4;
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.lineTo(x + boxW - r, y);
+            ctx.quadraticCurveTo(x + boxW, y, x + boxW, y + r);
+            ctx.lineTo(x + boxW, y + boxH - r);
+            ctx.quadraticCurveTo(x + boxW, y + boxH, x + boxW - r, y + boxH);
+            ctx.lineTo(x + r, y + boxH);
+            ctx.quadraticCurveTo(x, y + boxH, x, y + boxH - r);
+            ctx.lineTo(x, y + r);
+            ctx.quadraticCurveTo(x, y, x + r, y);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.fillStyle = '#fff';
+            ctx.textBaseline = 'middle';
+            ctx.textAlign = 'left';
+            ctx.fillText(text, x + padX, y + boxH / 2 + 0.5);
+            ctx.restore();
+        });
+    }
+};
+
 function initChart() {
     const ctx = document.getElementById('stock-chart').getContext('2d');
 
@@ -833,39 +865,68 @@ function initChart() {
         type: 'line',
         data: {
             labels: [],
-            datasets: [{
-                label: 'Stock Total',
-                data: [],
-                borderColor: '#1E40AF',
-                backgroundColor: 'rgba(30, 64, 175, 0.07)',
-                borderWidth: 2.5,
-                fill: true,
-                tension: 0.4,
-                pointRadius: 3,
-                pointHoverRadius: 7,
-                pointBackgroundColor: '#F59E0B',
-                pointBorderColor: '#fff',
-                pointBorderWidth: 2
-            }]
+            datasets: [
+                {
+                    label: 'Total (mismo periodo)',
+                    data: [],
+                    borderColor: '#94A3B8',
+                    backgroundColor: 'rgba(148, 163, 184, 0.10)',
+                    borderWidth: 2,
+                    borderDash: [6, 6],
+                    fill: true,
+                    tension: 0.35,
+                    pointRadius: 2.5,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: '#94A3B8',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                },
+                {
+                    label: 'Con filtros (selección)',
+                    data: [],
+                    borderColor: '#1E40AF',
+                    backgroundColor: 'rgba(30, 64, 175, 0.08)',
+                    borderWidth: 3,
+                    fill: false,
+                    tension: 0.35,
+                    pointRadius: 3,
+                    pointHoverRadius: 7,
+                    pointBackgroundColor: '#1E40AF',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                },
+            ],
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            layout: { padding: { right: 90, top: 16, bottom: 4, left: 4 } },
             interaction: {
                 intersect: false,
                 mode: 'index',
             },
             plugins: {
                 legend: {
-                    display: false
+                    display: false,
+                    position: 'bottom',
+                    labels: {
+                        boxWidth: 14,
+                        padding: 12,
+                        font: { size: 11, family: 'Fira Sans' },
+                        color: '#475569',
+                    },
                 },
                 tooltip: {
-                    backgroundColor: '#1E3A8A',
-                    borderColor: 'rgba(245, 158, 11, 0.4)',
+                    backgroundColor: '#0F172A',
+                    borderColor: 'rgba(245, 158, 11, 0.35)',
                     borderWidth: 1,
                     padding: 12,
+                    boxPadding: 4,
+                    titleColor: '#F8FAFC',
+                    bodyColor: '#F1F5F9',
+                    footerColor: '#FCD34D',
                     titleFont: {
-                        size: 13,
+                        size: 12,
                         family: 'Fira Code',
                         weight: '600'
                     },
@@ -873,9 +934,39 @@ function initChart() {
                         size: 12,
                         family: 'Fira Sans'
                     },
+                    footerFont: {
+                        size: 11,
+                        family: 'Fira Sans',
+                        weight: '600'
+                    },
+                    filter: (item) => item.parsed && item.parsed.y != null,
                     callbacks: {
+                        title: function (items) {
+                            if (!items || items.length === 0) return '';
+                            const idx = items[0].dataIndex;
+                            const isoDates = chartInstance && chartInstance._isoDates;
+                            const iso = isoDates ? isoDates[idx] : null;
+                            if (iso) {
+                                const p = iso.split('-');
+                                if (p.length === 3) return `${p[2]}/${p[1]}/${p[0]}`;
+                            }
+                            return items[0].label || '';
+                        },
                         label: function (context) {
-                            return 'Stock: ' + context.parsed.y.toLocaleString('es-AR');
+                            if (context.parsed.y == null) return '';
+                            const name = context.dataset.label || 'Stock';
+                            return `${name}: ${formatNumberAR(context.parsed.y)} animales`;
+                        },
+                        footer: function (items) {
+                            if (!items || items.length < 2) return '';
+                            const byLabel = {};
+                            items.forEach(it => { byLabel[it.datasetIndex] = it.parsed.y; });
+                            const total = byLabel[0];
+                            const sel = byLabel[1];
+                            if (total == null || sel == null || total <= 0) return '';
+                            const pct = (sel / total) * 100;
+                            const diff = total - sel;
+                            return `Selección = ${pct.toFixed(1)}% del total · Resto = ${formatNumberAR(diff)}`;
                         }
                     }
                 }
@@ -888,14 +979,20 @@ function initChart() {
                     },
                     ticks: {
                         color: '#475569',
+                        padding: 8,
                         font: {
                             size: 11,
                             family: 'Fira Sans'
                         },
                         callback: function (value) {
-                            if (value >= 1000) return value / 1000 + 'k';
-                            return value;
+                            return formatNumberAR(value);
                         }
+                    },
+                    title: {
+                        display: true,
+                        text: 'Animales',
+                        color: '#64748B',
+                        font: { size: 11, family: 'Fira Sans', weight: '600' }
                     }
                 },
                 x: {
@@ -905,7 +1002,7 @@ function initChart() {
                     ticks: {
                         maxRotation: 0,
                         autoSkip: true,
-                        maxTicksLimit: 8,
+                        maxTicksLimit: 10,
                         color: '#475569',
                         font: {
                             size: 11,
@@ -914,49 +1011,188 @@ function initChart() {
                     }
                 }
             }
-        }
+        },
+        plugins: [lastValueBadgePlugin]
     });
 }
 
-function updateChart(data) {
+/**
+ * @param {object[]} data Filas filtradas (actuales).
+ * @param {object[]|null} comparisonData Mismo rango de fechas sin Campo/Rodeo/Supra/Categoría; null si no aplica o sin filtros de entidad.
+ */
+function updateChart(data, comparisonData = null) {
+    if (!chartInstance) return;
+
     if (!data || data.length === 0) {
-        if (chartInstance) {
-            chartInstance.data.labels = [];
-            chartInstance.data.datasets[0].data = [];
-            chartInstance.update();
-        }
+        chartInstance._isoDates = [];
+        chartInstance.data.labels = [];
+        chartInstance.data.datasets[0].data = [];
+        chartInstance.data.datasets[1].data = [];
+        chartInstance.setDatasetVisibility(0, true);
+        chartInstance.setDatasetVisibility(1, false);
+        chartInstance.options.plugins.legend.display = false;
+        chartInstance.update();
+        renderChartSummary(null, null);
         return;
     }
 
-    const isExcluded = (cat) => CATS_EXCLUDED_FROM_SUPRA_TOTAL.some(c => c.toLowerCase() === (cat || '').toLowerCase());
+    const tFiltered = buildDailyStockTotalsByFecha(data);
+    const filters = getCurrentFilterValues();
+    const dual = !!(comparisonData && comparisonData.length && hasEntityFilterSelection(filters));
+    const tBase = dual ? buildDailyStockTotalsByFecha(comparisonData) : tFiltered;
 
-    // Group data by Fecha and sum Cantidads
-    const groupedData = data.reduce((acc, item) => {
-        if (isExcluded(item.Categoria)) return acc;
-        const fecha = item.Fecha;
-        if (!acc[fecha]) {
-            acc[fecha] = 0;
-        }
-        acc[fecha] += (item.Cantidad || 0);
-        return acc;
-    }, {});
+    const fmtShort = (iso) => {
+        const p = iso.split('-');
+        return p.length === 3 ? `${p[2]}/${p[1]}` : iso;
+    };
 
-    // Sort by Fecha
-    const sortedDates = Object.keys(groupedData).sort();
-    const quantities = sortedDates.map(date => groupedData[date]);
+    if (dual) {
+        const allFechas = [...new Set([...Object.keys(tBase), ...Object.keys(tFiltered)])].sort();
+        const sBase = allFechas.map(f => (f in tBase ? tBase[f] : null));
+        const sFil = allFechas.map(f => (f in tFiltered ? tFiltered[f] : null));
 
-    // Format dates for chart labels
-    const formattedLabels = sortedDates.map(date => {
-        const [y, m, d] = date.split('-');
-        return `${d}/${m}`;
-    });
+        chartInstance._isoDates = allFechas;
+        chartInstance.data.labels = allFechas.map(fmtShort);
 
-    // Update chart
-    if (chartInstance) {
-        chartInstance.data.labels = formattedLabels;
-        chartInstance.data.datasets[0].data = quantities;
-        chartInstance.update();
+        const ds0 = chartInstance.data.datasets[0];
+        ds0.data = sBase;
+        ds0.label = 'Total (mismo periodo)';
+        ds0.borderColor = '#94A3B8';
+        ds0.backgroundColor = 'rgba(148, 163, 184, 0.10)';
+        ds0.borderDash = [6, 6];
+        ds0.borderWidth = 2;
+        ds0.fill = true;
+        ds0.pointBackgroundColor = '#94A3B8';
+
+        const ds1 = chartInstance.data.datasets[1];
+        ds1.data = sFil;
+        ds1.label = 'Con filtros (selección)';
+        ds1.borderColor = '#1E40AF';
+        ds1.backgroundColor = 'rgba(30, 64, 175, 0.08)';
+        ds1.borderDash = [];
+        ds1.borderWidth = 3;
+        ds1.fill = false;
+        ds1.pointBackgroundColor = '#1E40AF';
+
+        chartInstance.setDatasetVisibility(0, true);
+        chartInstance.setDatasetVisibility(1, true);
+        chartInstance.options.plugins.legend.display = false;
+        renderChartSummary(sBase, sFil, allFechas);
+    } else {
+        const sortedDates = Object.keys(tFiltered).sort();
+        const quantities = sortedDates.map(date => tFiltered[date]);
+
+        chartInstance._isoDates = sortedDates;
+        chartInstance.data.labels = sortedDates.map(fmtShort);
+
+        const ds0 = chartInstance.data.datasets[0];
+        ds0.data = quantities;
+        ds0.label = 'Evolución de stock';
+        ds0.borderColor = '#1E40AF';
+        ds0.backgroundColor = 'rgba(30, 64, 175, 0.08)';
+        ds0.borderDash = [];
+        ds0.borderWidth = 3;
+        ds0.fill = true;
+        ds0.pointBackgroundColor = '#1E40AF';
+
+        chartInstance.data.datasets[1].data = [];
+        chartInstance.setDatasetVisibility(0, true);
+        chartInstance.setDatasetVisibility(1, false);
+        chartInstance.options.plugins.legend.display = false;
+        renderChartSummary(null, quantities, sortedDates);
     }
+
+    chartInstance.update();
+}
+
+function renderChartSummary(baseSeries, selSeries, isoDates) {
+    const el = document.getElementById('chart-summary');
+    if (!el) return;
+
+    if (!selSeries || selSeries.length === 0) {
+        el.innerHTML = '';
+        el.style.display = 'none';
+        return;
+    }
+
+    let lastIdx = -1;
+    for (let i = selSeries.length - 1; i >= 0; i--) {
+        if (selSeries[i] != null) { lastIdx = i; break; }
+    }
+    if (lastIdx < 0) {
+        el.innerHTML = '';
+        el.style.display = 'none';
+        return;
+    }
+
+    const lastSel = selSeries[lastIdx] || 0;
+    const lastBase = baseSeries ? (baseSeries[lastIdx] || 0) : null;
+    const isoLast = isoDates ? isoDates[lastIdx] : null;
+    const dateLabel = isoLast
+        ? (() => { const p = isoLast.split('-'); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : isoLast; })()
+        : '';
+
+    let firstSelIdx = -1;
+    for (let i = 0; i < selSeries.length; i++) {
+        if (selSeries[i] != null) { firstSelIdx = i; break; }
+    }
+    let trendHtml = '';
+    if (firstSelIdx >= 0 && firstSelIdx !== lastIdx) {
+        const first = selSeries[firstSelIdx] || 0;
+        const delta = lastSel - first;
+        const sign = delta > 0 ? '+' : (delta < 0 ? '−' : '');
+        const trendClass = delta > 0 ? 'is-up' : (delta < 0 ? 'is-down' : 'is-flat');
+        const arrow = delta > 0 ? '▲' : (delta < 0 ? '▼' : '■');
+        const pct = first > 0 ? Math.abs((delta / first) * 100) : 0;
+        trendHtml = `
+            <span class="chart-summary__trend ${trendClass}">
+                <span aria-hidden="true">${arrow}</span>
+                ${sign}${formatNumberAR(Math.abs(delta))} (${pct.toFixed(1)}%) vs inicio
+            </span>
+        `;
+    }
+
+    if (lastBase == null) {
+        el.innerHTML = `
+            <div class="chart-summary__metrics">
+                <div class="chart-summary__metric">
+                    <div class="chart-summary__label">Stock al ${dateLabel}</div>
+                    <div class="chart-summary__value">${formatNumberAR(lastSel)} <span class="chart-summary__unit">animales</span></div>
+                    ${trendHtml}
+                </div>
+            </div>
+        `;
+        el.style.display = 'block';
+        return;
+    }
+
+    const pct = lastBase > 0 ? (lastSel / lastBase) * 100 : 0;
+    const rest = Math.max(lastBase - lastSel, 0);
+
+    el.innerHTML = `
+        <div class="chart-summary__metrics">
+            <div class="chart-summary__metric chart-summary__metric--filtered">
+                <div class="chart-summary__label"><span class="chart-summary__dot"></span>Selección al ${dateLabel}</div>
+                <div class="chart-summary__value">${formatNumberAR(lastSel)} <span class="chart-summary__unit">animales</span></div>
+                ${trendHtml}
+            </div>
+            <div class="chart-summary__divider" aria-hidden="true"></div>
+            <div class="chart-summary__metric chart-summary__metric--total">
+                <div class="chart-summary__label"><span class="chart-summary__dot"></span>Total del periodo</div>
+                <div class="chart-summary__value">${formatNumberAR(lastBase)} <span class="chart-summary__unit">animales</span></div>
+                <div class="chart-summary__sub">resto: ${formatNumberAR(rest)} animales</div>
+            </div>
+            <div class="chart-summary__divider" aria-hidden="true"></div>
+            <div class="chart-summary__metric chart-summary__metric--share">
+                <div class="chart-summary__label">Participación</div>
+                <div class="chart-summary__value">${pct.toFixed(1)}<span class="chart-summary__unit">%</span></div>
+                <div class="chart-summary__bar" role="img" aria-label="${pct.toFixed(1)}% de la selección sobre el total">
+                    <span class="chart-summary__bar-fill" style="width:${Math.min(pct, 100)}%"></span>
+                </div>
+            </div>
+        </div>
+    `;
+    el.style.display = 'block';
 }
 
 // ===== INFORME TABLE LOGIC =====
@@ -1450,7 +1686,9 @@ function exportMatrixToPDF() {
         const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
         const pageWidth = doc.internal.pageSize.getWidth();
         const pageHeight = doc.internal.pageSize.getHeight();
-        const margin = 5;
+        const margin = 3;
+        const availableWidth = pageWidth - (margin * 2);
+        const availableHeight = pageHeight - (margin * 2);
 
         // 1. Filtrar solo categorías con datos
         const activeCatsStructure = {};
@@ -1462,37 +1700,10 @@ function exportMatrixToPDF() {
         const suprasWithData = Object.keys(activeCatsStructure);
         const numCatCols = ALL_ACTIVE_CATS.length;
 
-        // 2. Anchos y font adaptativo
-        const fixedWidth = 25 + 22 + 13;
-        const availableWidth = pageWidth - (margin * 2) - fixedWidth;
-        let fontSize = 7;
-        if (numCatCols > 14) fontSize = 5.5;
-        else if (numCatCols > 10) fontSize = 6;
-        const catColWidth = Math.min(18, Math.max(9, availableWidth / Math.max(numCatCols, 1)));
+        // 2. Sin encabezado: la tabla arranca desde el borde superior.
+        const tableStartY = margin;
 
-        // 3. Header de página
-        doc.setFontSize(11);
-        doc.setTextColor(30, 41, 59);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Planilla de Stock', margin, 8);
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'normal');
-        doc.text('Fecha del stock: ' + fechaImpresion, margin, 13.5);
-        const hoy = new Date();
-        const hoyStr = String(hoy.getDate()).padStart(2, '0') + '/' + String(hoy.getMonth() + 1).padStart(2, '0') + '/' + hoy.getFullYear();
-        doc.setFontSize(7.5);
-        doc.setTextColor(100, 116, 139);
-        doc.text('Generado: ' + hoyStr, pageWidth - margin, 8, { align: 'right' });
-
-        let tableStartY = 18;
-        if (filtrosActivos.length > 0) {
-            doc.setFontSize(7.5);
-            doc.setTextColor(71, 85, 105);
-            doc.text('Filtros: ' + filtrosActivos.join(' · '), margin, tableStartY);
-            tableStartY += 4;
-        }
-
-        // 4. Colores
+        // 3. Colores
         const C_SUPRA_BG = [169, 209, 142];
         const C_SUPRA_TXT = [26, 66, 20];
         const C_CAT_BG = [226, 240, 217];
@@ -1505,33 +1716,7 @@ function exportMatrixToPDF() {
         const C_WHITE = [255, 255, 255];
         const C_DARK = [30, 41, 59];
 
-        // 5. HEAD de 2 niveles
-        const headRow1 = [
-            { content: 'Campo', rowSpan: 2, styles: { fillColor: C_STICK_BG, fontStyle: 'bold', halign: 'left', cellWidth: 25, textColor: C_DARK } },
-            { content: 'Rodeo', rowSpan: 2, styles: { fillColor: C_STICK_BG, fontStyle: 'bold', halign: 'left', cellWidth: 22, textColor: C_DARK } },
-            { content: 'TOT.', rowSpan: 2, styles: { fillColor: C_TOT_BG, fontStyle: 'bold', halign: 'center', cellWidth: 13, textColor: C_DARK } }
-        ];
-        suprasWithData.forEach(supra => {
-            const cats = activeCatsStructure[supra];
-            const sub = supraSubtotals[supra] || 0;
-            headRow1.push({
-                content: supra + '  (' + sub.toLocaleString('es-AR') + ')',
-                colSpan: cats.length,
-                styles: { fillColor: C_SUPRA_BG, textColor: C_SUPRA_TXT, fontStyle: 'bold', halign: 'center', overflow: 'linebreak' }
-            });
-        });
-
-        const headRow2 = [];
-        suprasWithData.forEach(supra => {
-            activeCatsStructure[supra].forEach(cat => {
-                headRow2.push({
-                    content: cat,
-                    styles: { fillColor: C_CAT_BG, textColor: C_CAT_TXT, fontStyle: 'normal', halign: 'center', cellWidth: catColWidth }
-                });
-            });
-        });
-
-        // 6. BODY
+        // 4. BODY (lo construimos antes para conocer el contenido real y dimensionar columnas)
         const body = [];
 
         // Fila GENERAL
@@ -1546,7 +1731,6 @@ function exportMatrixToPDF() {
         });
         body.push(generalRow);
 
-        // Campos y Rodeos
         const sortedCampos = Object.keys(matrix).sort();
         sortedCampos.forEach(campoName => {
             const campoData = matrix[campoName];
@@ -1581,19 +1765,104 @@ function exportMatrixToPDF() {
             body.push(ctRow);
         });
 
-        // 7. Render tabla
-        doc.autoTable({
+        // 5. Layout óptimo: anchos dinámicos + fontSize máximo que entre en una hoja.
+        // ---------------------------------------------------------------------------
+        // Medimos el contenido más largo de Campo y Rodeo para dimensionar esas columnas
+        // y EVITAR que el texto se corte en 2 líneas (cada salto duplica la altura de fila).
+        const allRodeos = sortedCampos.flatMap(c => Object.keys(matrix[c].rodeos));
+        const longestCampoChars = Math.max(7, ...sortedCampos.map(s => s.length)); // 'GENERAL' (7 chars)
+        const longestRodeoChars = Math.max(5, ...allRodeos.map(s => s.length));
+        // El número más grande del cuerpo (TOT y categorías) determina el ancho mínimo numérico.
+        let longestNumChars = 4; // mínimo 4 chars
+        body.forEach(row => row.forEach((cell, idx) => {
+            if (idx >= 2 && cell && typeof cell.content === 'string') {
+                longestNumChars = Math.max(longestNumChars, cell.content.length);
+            }
+        }));
+
+        const PAD_V = 0.5;
+        const PAD_H = 1.2;
+        const LINE_F = 0.65;          // mm por pt (incluye interlineado real de jsPDF/helvetica)
+        const CHAR_W = 0.19;          // mm por pt por carácter (helvetica, conservador)
+        const SAFETY = 1.5;           // colchón para evitar saltar a una 2ª página por redondeos
+        const usableHeight = availableHeight - SAFETY;
+
+        // Buscamos el fontSize más grande (1..14 pt para el header) que cumpla:
+        //  a) Campo y Rodeo entran sin envolver
+        //  b) las columnas de categoría tienen ancho razonable para los números
+        //  c) la altura total ≤ una hoja A4
+        let fontSize = 5;
+        let campoColW = 22, rodeoColW = 22, totColW = 13;
+        for (let f = 14; f >= 5; f -= 0.5) {
+            const charMmBody = (f + 1) * CHAR_W; // body usa fontSize + 1
+            const cW = Math.min(34, Math.max(18, longestCampoChars * charMmBody + 2 * PAD_H + 0.6));
+            const rW = Math.min(42, Math.max(20, longestRodeoChars * charMmBody + 2 * PAD_H + 0.6));
+            const tW = Math.max(11, Math.min(16, longestNumChars * charMmBody + 2 * PAD_H + 0.6));
+            const remaining = availableWidth - cW - rW - tW;
+            const ccW = remaining / Math.max(numCatCols, 1);
+            // Verifica que los números más grandes entren sin saltos en categorías.
+            const numFitsCat = ccW >= longestNumChars * charMmBody + 2 * PAD_H - 0.4;
+            if (!numFitsCat) continue;
+            // Verifica que la altura total entre en una sola hoja A4.
+            const trialBodyH = 2 * PAD_V + (f + 1) * LINE_F;
+            const trialHeadH = 2 * PAD_V + f * LINE_F;
+            const totalH = 2 * trialHeadH + body.length * trialBodyH;
+            if (totalH <= usableHeight) {
+                fontSize = f;
+                campoColW = cW; rodeoColW = rW; totColW = tW;
+                break;
+            }
+        }
+
+        // 6. HEAD de 2 niveles (anchos calculados arriba).
+        const headRow1 = [
+            { content: 'Campo', rowSpan: 2, styles: { fillColor: C_STICK_BG, fontStyle: 'bold', halign: 'left', cellWidth: campoColW, textColor: C_DARK } },
+            { content: 'Rodeo', rowSpan: 2, styles: { fillColor: C_STICK_BG, fontStyle: 'bold', halign: 'left', cellWidth: rodeoColW, textColor: C_DARK } },
+            { content: 'TOT.', rowSpan: 2, styles: { fillColor: C_TOT_BG, fontStyle: 'bold', halign: 'center', cellWidth: totColW, textColor: C_DARK } }
+        ];
+        suprasWithData.forEach(supra => {
+            const cats = activeCatsStructure[supra];
+            const sub = supraSubtotals[supra] || 0;
+            headRow1.push({
+                content: supra + '  (' + sub.toLocaleString('es-AR') + ')',
+                colSpan: cats.length,
+                styles: { fillColor: C_SUPRA_BG, textColor: C_SUPRA_TXT, fontStyle: 'bold', halign: 'center', overflow: 'linebreak' }
+            });
+        });
+
+        const headRow2 = [];
+        suprasWithData.forEach(supra => {
+            activeCatsStructure[supra].forEach(cat => {
+                headRow2.push({
+                    content: cat,
+                    styles: { fillColor: C_CAT_BG, textColor: C_CAT_TXT, fontStyle: 'normal', halign: 'center' }
+                });
+            });
+        });
+
+        // 7. Altura uniforme del body: distribuir el sobrante SOLO entre filas del body
+        // para que la tabla llene la hoja A4 sin que el header crezca y empuje todo a la
+        // segunda página.
+        const bodyRowH = 2 * PAD_V + (fontSize + 1) * LINE_F;
+        const headerRowH = 2 * PAD_V + fontSize * LINE_F;
+        const bodyRowsCount = Math.max(body.length, 1);
+        const slack = Math.max(0, usableHeight - 2 * headerRowH - bodyRowsCount * bodyRowH);
+        const bodyMinH = bodyRowH + slack / bodyRowsCount;
+
+        autoTable(doc, {
             head: [headRow1, headRow2],
             body: body,
             startY: tableStartY,
             theme: 'grid',
             styles: {
                 fontSize: fontSize,
-                cellPadding: { top: 1.5, right: 2, bottom: 1.5, left: 2 },
+                cellPadding: { top: PAD_V, right: PAD_H, bottom: PAD_V, left: PAD_H },
+                minCellHeight: bodyMinH,
                 valign: 'middle',
                 textColor: C_DARK,
                 lineColor: [203, 213, 225],
-                lineWidth: 0.2
+                lineWidth: 0.2,
+                overflow: 'linebreak'
             },
             headStyles: {
                 fontSize: fontSize,
@@ -1601,25 +1870,21 @@ function exportMatrixToPDF() {
                 textColor: C_SUPRA_TXT,
                 fontStyle: 'bold',
                 halign: 'center',
-                valign: 'middle'
+                valign: 'middle',
+                minCellHeight: headerRowH
             },
             columnStyles: {
-                0: { cellWidth: 25, halign: 'left' },
-                1: { cellWidth: 22, halign: 'left' },
-                2: { cellWidth: 13, halign: 'center', fontStyle: 'bold', fillColor: C_TOT_BG }
+                0: { cellWidth: campoColW, halign: 'left' },
+                1: { cellWidth: rodeoColW, halign: 'left' },
+                2: { cellWidth: totColW, halign: 'center', fontStyle: 'bold', fillColor: C_TOT_BG }
             },
-            margin: { top: 5, bottom: 8, left: margin, right: margin },
+            margin: { top: margin, bottom: margin, left: margin, right: margin },
             tableWidth: 'auto',
+            rowPageBreak: 'avoid',
             didParseCell: function (hookData) {
-                // Columnas numéricas (índice >= 2) en filas del body: +3pt
                 if (hookData.section === 'body' && hookData.column.index >= 2) {
                     hookData.cell.styles.fontSize = fontSize + 1;
                 }
-            },
-            didDrawPage: function (data) {
-                doc.setFontSize(7);
-                doc.setTextColor(148, 163, 184);
-                doc.text('Página ' + data.pageNumber, pageWidth / 2, pageHeight - 3, { align: 'center' });
             }
         });
 
@@ -1662,13 +1927,13 @@ function initExportMatrixPDFButton() {
 }
 
 // ===== DASHBOARD INITIALIZATION =====
-function updateDashboard(data) {
+function updateDashboard(data, chartComparisonData) {
     // Store data globally for CSV export
     window.currentFilteredData = data;
 
     const kpis = calculateKPIs(data);
     updateKPICards(kpis);
-    updateChart(data);
+    updateChart(data, chartComparisonData);
     updateInformeTable(data);
     updateMatrixTable(data);
 }
@@ -1722,11 +1987,11 @@ async function initializeDashboard() {
     document.querySelectorAll('.date-pill').forEach(btn => {
         btn.addEventListener('click', () => switchDateMode(btn.dataset.mode));
     });
-    // Other filters
-    document.getElementById('filter-campo').addEventListener('change', fetchFilteredData);
-    document.getElementById('filter-rodeo').addEventListener('change', fetchFilteredData);
-    document.getElementById('filter-supracategoria').addEventListener('change', handleSupracategoriaChange);
-    document.getElementById('filter-categoria').addEventListener('change', handleCategoriaChange);
+    // Other filters (cascada dependiente)
+    document.getElementById('filter-campo').addEventListener('change', handleRelationFilterChange);
+    document.getElementById('filter-rodeo').addEventListener('change', handleRelationFilterChange);
+    document.getElementById('filter-supracategoria').addEventListener('change', handleRelationFilterChange);
+    document.getElementById('filter-categoria').addEventListener('change', handleRelationFilterChange);
     document.getElementById('clear-filters-btn').addEventListener('click', clearFilters);
 
     // Setup KPI card clicks

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Login from './components/Login.jsx';
 import { supabaseClient } from './lib/supabase.js';
 import { notifyAuthSession } from './lib/authBridge.js';

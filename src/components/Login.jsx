@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { supabaseClient } from '../lib/supabase.js';
 
 export default function Login() {
