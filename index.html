@@ -19,38 +19,8 @@
     <!-- Dot-grid background pattern -->
     <div class="bg-grid" aria-hidden="true"></div>
 
-    <!-- Login Screen -->
-    <div id="login-screen" class="login-container">
-        <div class="login-card">
-            <div class="login-logo" aria-hidden="true">
-                <!-- SVG: BarChart2 (Lucide) -->
-                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="18" y1="20" x2="18" y2="10"></line>
-                    <line x1="12" y1="20" x2="12" y2="4"></line>
-                    <line x1="6" y1="20" x2="6" y2="14"></line>
-                </svg>
-            </div>
-            <div class="login-header">
-                <h1>Panel de Control</h1>
-                <p>Ingresa tus credenciales para continuar</p>
-            </div>
-            <form id="login-form">
-                <div class="form-group">
-                    <label for="email">Email</label>
-                    <input type="email" id="email" name="email" placeholder="tu@email.com" required
-                        autocomplete="email">
-                </div>
-                <div class="form-group">
-                    <label for="password">Contraseña</label>
-                    <input type="password" id="password" name="password" placeholder="••••••••" required
-                        autocomplete="current-password">
-                </div>
-                <div id="login-error" class="error-message" role="alert" aria-live="polite"></div>
-                <button type="submit" class="btn-primary">Iniciar Sesión</button>
-            </form>
-        </div>
-    </div>
+    <!-- Login: rendered by React (misma estructura y clases CSS) -->
+    <div id="login-portal-target"></div>
 
     <!-- Loading Overlay (Global) -->
     <div id="loading-overlay" class="loading-overlay">
@@ -645,17 +615,9 @@
         </div>
     </div>
 
-    <!-- Supabase CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- Chart.js CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <!-- ExcelJS CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
-    <!-- jsPDF CDN -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <!-- jsPDF-AutoTable CDN -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
-    <script src="app.js?v=5"></script>
+    <div id="react-root"></div>
+    <script type="module" src="/app.js"></script>
+    <script type="module" src="/src/main.jsx"></script>
 </body>
 
 </html>

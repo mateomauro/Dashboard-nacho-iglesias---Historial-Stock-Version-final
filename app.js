@@ -1,13 +1,22 @@
-// ===== SUPABASE CONFIGURATION =====
-const SUPABASE_URL = 'https://urquftsucjtqxogjjhhx.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVycXVmdHN1Y2p0cXhvZ2pqaGh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4NjQ3MjMsImV4cCI6MjA4NzQ0MDcyM30.GJu2UaYFqQAXMgghQY1Xag62tKecNG8hk-nzsvYKdzE';
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+import Chart from 'chart.js/auto';
+import ExcelJS from 'exceljs';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import { supabaseClient } from './src/lib/supabase.js';
+import { setAuthUiHandler } from './src/lib/authBridge.js';
+
+autoTable(jsPDF);
 
 // ===== GLOBAL STATE =====
 let chartInstance = null;
 let isInitialized = false;
 let sessionTimeout = null; // Temporizador para el cierre automático
 const SESSION_DURATION = 60 * 60 * 1000; // 1 hora en milisegundos
+let allCategories = [];
+let allSupracategorias = [];
+let categoriesBySupra = {};
+let suprasByCategory = {};
+let activeFetchRequestId = 0;
 
 // MATRIX CONFIGURATION
 const MATRIX_STRUCTURE = {
@@ -21,17 +30,12 @@ const MATRIX_STRUCTURE = {
 const CATS_EXCLUDED_FROM_SUPRA_TOTAL = ['Tro Indif'];
 
 // ===== AUTHENTICATION (Supabase Auth) =====
-async function checkAuth() {
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    updateUIForAuth(session);
-}
-
 function updateUIForAuth(session) {
     const loginScreen = document.getElementById('login-screen');
     const dashboard = document.getElementById('dashboard');
 
     if (session) {
-        loginScreen.style.display = 'none';
+        if (loginScreen) loginScreen.style.display = 'none';
         dashboard.style.display = 'block';
 
         // --- Lógica de tiempo de expiración ---
@@ -42,7 +46,7 @@ function updateUIForAuth(session) {
             isInitialized = true;
         }
     } else {
-        loginScreen.style.display = 'flex';
+        if (loginScreen) loginScreen.style.display = 'flex';
         dashboard.style.display = 'none';
         isInitialized = false;
 
@@ -83,44 +87,13 @@ function manejarExpiracionSesion() {
     }
 }
 
-
-async function handleLogin(event) {
-    event.preventDefault();
-
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-    const errorElement = document.getElementById('login-error');
-    const loginBtn = event.target.querySelector('button');
-
-    try {
-        loginBtn.disabled = true;
-        loginBtn.textContent = 'Iniciando...';
-
-        const { error } = await supabaseClient.auth.signInWithPassword({
-            email,
-            password,
-        });
-
-        if (error) throw error;
-
-        errorElement.classList.remove('show');
-    } catch (error) {
-        errorElement.textContent = 'Error: ' + error.message;
-        errorElement.classList.add('show');
-    } finally {
-        loginBtn.disabled = false;
-        loginBtn.textContent = 'Iniciar Sesión';
-    }
-}
+setAuthUiHandler(updateUIForAuth);
 
 async function handleLogout() {
     await supabaseClient.auth.signOut();
 }
 
-// Escuchar cambios en el estado de autenticación (login/logout/refresh)
-supabaseClient.auth.onAuthStateChange((event, session) => {
-    updateUIForAuth(session);
-});
+// Auth state: React (src/App.jsx) suscribe a Supabase y notifica vía authBridge.
 
 // ===== UI HELPERS =====
 function showLoading(isInitial = false) {
@@ -254,6 +227,16 @@ function hideError() {
     document.getElementById('api-error').classList.remove('show');
 }
 
+function setDisplayById(id, displayValue) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = displayValue;
+}
+
+function setDisplayBySelector(selector, displayValue) {
+    const el = document.querySelector(selector);
+    if (el) el.style.display = displayValue;
+}
+
 // ===== SIDE PANEL LOGIC =====
 let panelState = {
     list: [],
@@ -385,6 +368,43 @@ async function initializeFilters() {
         const supracategorias = [...new Set(data.map(item => item.Supracategoria))].filter(Boolean).sort();
         const categorias = [...new Set(data.map(item => item.Categoria))].filter(Boolean).sort();
 
+        // Build relation maps to support dependent filters
+        categoriesBySupra = {};
+        suprasByCategory = {};
+        data.forEach(item => {
+            const supra = item.Supracategoria;
+            const categoria = item.Categoria;
+            if (!supra || !categoria) return;
+
+            if (!categoriesBySupra[supra]) categoriesBySupra[supra] = new Set();
+            categoriesBySupra[supra].add(categoria);
+
+            if (!suprasByCategory[categoria]) suprasByCategory[categoria] = new Set();
+            suprasByCategory[categoria].add(supra);
+        });
+        Object.keys(categoriesBySupra).forEach(supra => {
+            categoriesBySupra[supra] = [...categoriesBySupra[supra]].sort();
+        });
+        Object.keys(suprasByCategory).forEach(categoria => {
+            suprasByCategory[categoria] = [...suprasByCategory[categoria]].sort();
+        });
+
+        // Enforce canonical matrix relations for filter UX consistency
+        Object.entries(MATRIX_STRUCTURE).forEach(([supra, cats]) => {
+            if (!categoriesBySupra[supra]) categoriesBySupra[supra] = [];
+            const mergedCats = new Set([...(categoriesBySupra[supra] || []), ...cats]);
+            categoriesBySupra[supra] = [...mergedCats].sort();
+
+            cats.forEach(cat => {
+                if (!suprasByCategory[cat]) suprasByCategory[cat] = [];
+                const mergedSupras = new Set([...(suprasByCategory[cat] || []), supra]);
+                suprasByCategory[cat] = [...mergedSupras].sort();
+            });
+        });
+
+        allCategories = categorias;
+        allSupracategorias = supracategorias;
+
         // Populate Campo filter
         const campoSelect = document.getElementById('filter-campo');
         campoSelect.innerHTML = '<option value="">Todos los campos</option>';
@@ -406,24 +426,10 @@ async function initializeFilters() {
         });
 
         // Populate Supracategoria filter
-        const supracategoriaSelect = document.getElementById('filter-supracategoria');
-        supracategoriaSelect.innerHTML = '<option value="">Todas las supracategorías</option>';
-        supracategorias.forEach(value => {
-            const option = document.createElement('option');
-            option.value = value;
-            option.textContent = value;
-            supracategoriaSelect.appendChild(option);
-        });
+        updateSupracategoriaFilterOptions();
 
         // Populate Categoria filter
-        const categoriaSelect = document.getElementById('filter-categoria');
-        categoriaSelect.innerHTML = '<option value="">Todas las categorías</option>';
-        categorias.forEach(value => {
-            const option = document.createElement('option');
-            option.value = value;
-            option.textContent = value;
-            categoriaSelect.appendChild(option);
-        });
+        updateCategoryFilterOptions();
 
         hideLoading();
     } catch (error) {
@@ -433,110 +439,208 @@ async function initializeFilters() {
     }
 }
 
+function updateCategoryFilterOptions() {
+    const supraValue = document.getElementById('filter-supracategoria').value;
+    const categoriaSelect = document.getElementById('filter-categoria');
+    const previousCategory = categoriaSelect.value;
+
+    const visibleCategories = supraValue
+        ? (categoriesBySupra[supraValue] || [])
+        : allCategories;
+
+    categoriaSelect.innerHTML = '<option value="">Todas las categorías</option>';
+    visibleCategories.forEach(value => {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = value;
+        categoriaSelect.appendChild(option);
+    });
+
+    // Keep previous selection only if still valid after supra change
+    if (previousCategory && visibleCategories.includes(previousCategory)) {
+        categoriaSelect.value = previousCategory;
+    } else {
+        categoriaSelect.value = '';
+    }
+}
+
+function updateSupracategoriaFilterOptions() {
+    const categoriaValue = document.getElementById('filter-categoria').value;
+    const supracategoriaSelect = document.getElementById('filter-supracategoria');
+    const previousSupra = supracategoriaSelect.value;
+
+    const visibleSupras = categoriaValue
+        ? (suprasByCategory[categoriaValue] || [])
+        : allSupracategorias;
+
+    supracategoriaSelect.innerHTML = '<option value="">Todas las supracategorías</option>';
+    visibleSupras.forEach(value => {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = value;
+        supracategoriaSelect.appendChild(option);
+    });
+
+    if (previousSupra && visibleSupras.includes(previousSupra)) {
+        supracategoriaSelect.value = previousSupra;
+    } else if (categoriaValue && visibleSupras.length === 1) {
+        // UX: auto-select the only valid supra for selected category
+        supracategoriaSelect.value = visibleSupras[0];
+    } else {
+        supracategoriaSelect.value = '';
+    }
+}
+
+function handleSupracategoriaChange() {
+    updateCategoryFilterOptions();
+    fetchFilteredData();
+}
+
+function handleCategoriaChange() {
+    updateSupracategoriaFilterOptions();
+    updateCategoryFilterOptions();
+    fetchFilteredData();
+}
+
+function getCurrentFilterValues() {
+    return {
+        campoValue: document.getElementById('filter-campo').value,
+        rodeoValue: document.getElementById('filter-rodeo').value,
+        supracategoriaValue: document.getElementById('filter-supracategoria').value,
+        categoriaValue: document.getElementById('filter-categoria').value,
+        datePresetValue: document.getElementById('filter-date').value,
+        singleDateValue: document.getElementById('filter-date-single').value,
+        dateFromValue: document.getElementById('filter-date-from').value,
+        dateToValue: document.getElementById('filter-date-to').value
+    };
+}
+
+function applyBasicFiltersToQuery(query, filters) {
+    let nextQuery = query;
+    if (filters.campoValue) nextQuery = nextQuery.eq('Campo', filters.campoValue);
+    if (filters.rodeoValue) nextQuery = nextQuery.eq('Rodeo', filters.rodeoValue);
+    if (filters.supracategoriaValue) nextQuery = nextQuery.eq('Supracategoria', filters.supracategoriaValue);
+    if (filters.categoriaValue) nextQuery = nextQuery.eq('Categoria', filters.categoriaValue);
+    return nextQuery;
+}
+
+function applyDateFiltersToQuery(query, filters) {
+    let nextQuery = query;
+
+    if (activeDateMode === 'preset') {
+        if (filters.datePresetValue !== 'all') {
+            const today = new Date();
+            let dateFrom = new Date(today);
+
+            if (filters.datePresetValue === '7days') {
+                dateFrom.setDate(today.getDate() - 7);
+            } else if (filters.datePresetValue === '30days') {
+                dateFrom.setDate(today.getDate() - 30);
+            } else if (filters.datePresetValue === 'thismonth') {
+                dateFrom = new Date(today.getFullYear(), today.getMonth(), 1);
+            } else if (filters.datePresetValue === 'lastmonth') {
+                dateFrom = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                const dateTo = new Date(today.getFullYear(), today.getMonth(), 0);
+                return nextQuery
+                    .gte('Fecha', dateFrom.toISOString().split('T')[0])
+                    .lte('Fecha', dateTo.toISOString().split('T')[0]);
+            } else if (filters.datePresetValue === 'thisyear') {
+                dateFrom = new Date(today.getFullYear(), 0, 1);
+            }
+
+            nextQuery = nextQuery.gte('Fecha', dateFrom.toISOString().split('T')[0]);
+        }
+    } else if (activeDateMode === 'single') {
+        if (filters.singleDateValue) {
+            nextQuery = nextQuery.eq('Fecha', filters.singleDateValue);
+        }
+    } else if (activeDateMode === 'range') {
+        if (filters.dateFromValue && filters.dateToValue && filters.dateFromValue > filters.dateToValue) {
+            throw new Error('Rango de fecha inválido: "Desde" no puede ser mayor que "Hasta".');
+        }
+        if (filters.dateFromValue) nextQuery = nextQuery.gte('Fecha', filters.dateFromValue);
+        if (filters.dateToValue) nextQuery = nextQuery.lte('Fecha', filters.dateToValue);
+    }
+
+    return nextQuery;
+}
+
+function deduplicateStockRows(rows) {
+    if (!rows || rows.length === 0) return [];
+
+    const seen = new Set();
+    const deduplicated = [];
+
+    // Recorremos de atrás hacia adelante para conservar el último registro de cada clave.
+    for (let i = rows.length - 1; i >= 0; i--) {
+        const item = rows[i];
+        const key = `${item.Fecha}|${item.Campo}|${item.Rodeo}|${item.Supracategoria}|${item.Categoria}`;
+        if (!seen.has(key)) {
+            seen.add(key);
+            deduplicated.unshift(item);
+        }
+    }
+
+    return deduplicated;
+}
+
+function updateDataViewVisibility(hasData) {
+    if (!hasData) {
+        setDisplayById('no-data-message', 'flex');
+        setDisplayById('informe-empty-state', 'flex');
+        setDisplayById('matrix-empty-state', 'flex');
+        setDisplayBySelector('.table-responsive:not(.matrix-responsive)', 'none');
+        setDisplayBySelector('.matrix-responsive', 'none');
+        return;
+    }
+
+    setDisplayById('no-data-message', 'none');
+    setDisplayById('informe-empty-state', 'none');
+    setDisplayById('matrix-empty-state', 'none');
+    setDisplayBySelector('.table-responsive:not(.matrix-responsive)', 'block');
+    setDisplayBySelector('.matrix-responsive', 'block');
+}
+
 async function fetchFilteredData() {
+    const requestId = ++activeFetchRequestId;
+
     try {
         updateActiveFiltersIndicator();
         showLoading(false);
         hideError();
 
-        let goto_skip_preset = false;
-        const campoValue = document.getElementById('filter-campo').value;
-        const rodeoValue = document.getElementById('filter-rodeo').value;
-        const supracategoriaValue = document.getElementById('filter-supracategoria').value;
-        const categoriaValue = document.getElementById('filter-categoria').value;
+        const filters = getCurrentFilterValues();
 
         // Query Historial_Stock table
         let query = supabaseClient.from('Historial_Stock').select('*');
-
-        // Apply filters using capitalized column names
-        if (campoValue) query = query.eq('Campo', campoValue);
-        if (rodeoValue) query = query.eq('Rodeo', rodeoValue);
-        if (supracategoriaValue) query = query.eq('Supracategoria', supracategoriaValue);
-        if (categoriaValue) query = query.eq('Categoria', categoriaValue);
-
-        // Date Filtering â€” supports 3 modes
-        if (activeDateMode === 'preset') {
-            const dateFilter = document.getElementById('filter-date').value;
-            if (dateFilter !== 'all') {
-                const today = new Date();
-                let dateFrom = new Date(today);
-
-                if (dateFilter === '7days') {
-                    dateFrom.setDate(today.getDate() - 7);
-                } else if (dateFilter === '30days') {
-                    dateFrom.setDate(today.getDate() - 30);
-                } else if (dateFilter === 'thismonth') {
-                    dateFrom = new Date(today.getFullYear(), today.getMonth(), 1);
-                } else if (dateFilter === 'lastmonth') {
-                    dateFrom = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-                    const dateTo = new Date(today.getFullYear(), today.getMonth(), 0);
-                    query = query.gte('Fecha', dateFrom.toISOString().split('T')[0])
-                        .lte('Fecha', dateTo.toISOString().split('T')[0]);
-                    // skip the generic gte below
-                    goto_skip_preset = true;
-                } else if (dateFilter === 'thisyear') {
-                    dateFrom = new Date(today.getFullYear(), 0, 1);
-                }
-
-                if (!goto_skip_preset) {
-                    query = query.gte('Fecha', dateFrom.toISOString().split('T')[0]);
-                }
-            }
-        } else if (activeDateMode === 'single') {
-            const singleDate = document.getElementById('filter-date-single').value;
-            if (singleDate) {
-                query = query.eq('Fecha', singleDate);
-            }
-        } else if (activeDateMode === 'range') {
-            const dateFrom = document.getElementById('filter-date-from').value;
-            const dateTo = document.getElementById('filter-date-to').value;
-            if (dateFrom) query = query.gte('Fecha', dateFrom);
-            if (dateTo) query = query.lte('Fecha', dateTo);
-        }
+        query = applyBasicFiltersToQuery(query, filters);
+        query = applyDateFiltersToQuery(query, filters);
 
         const { data, error } = await query;
         if (error) throw error;
 
-        let processedData = data || [];
+        // If a newer filter request was triggered, ignore this stale response.
+        if (requestId !== activeFetchRequestId) return;
 
-        // --- Eliminar posibles duplicados exactos (mismo dia, campo, rodeo, supra, categoria) ---
-        if (processedData.length > 0) {
-            const seen = new Set();
-            const deduplicated = [];
-            // Recorrer de atras hacia adelante para quedarse con la ultima entrada de cada grupo
-            for (let i = processedData.length - 1; i >= 0; i--) {
-                const item = processedData[i];
-                const key = `${item.Fecha}|${item.Campo}|${item.Rodeo}|${item.Supracategoria}|${item.Categoria}`;
-                if (!seen.has(key)) {
-                    seen.add(key);
-                    deduplicated.unshift(item); // insert at start to maintain order
-                }
-            }
-            processedData = deduplicated;
-        }
+        const processedData = deduplicateStockRows(data || []);
 
         if (processedData.length === 0) {
-            document.getElementById('no-data-message').style.display = 'flex';
-            document.getElementById('informe-empty-state').style.display = 'flex';
-            document.getElementById('matrix-empty-state').style.display = 'flex';
-            document.querySelector('.table-responsive:not(.matrix-responsive)').style.display = 'none';
-            document.querySelector('.matrix-responsive').style.display = 'none';
+            updateDataViewVisibility(false);
             updateDashboard([]);
         } else {
-            document.getElementById('no-data-message').style.display = 'none';
-            document.getElementById('informe-empty-state').style.display = 'none';
-            document.getElementById('matrix-empty-state').style.display = 'none';
-            document.querySelector('.table-responsive:not(.matrix-responsive)').style.display = 'block';
-            document.querySelector('.matrix-responsive').style.display = 'block';
+            updateDataViewVisibility(true);
             updateDashboard(processedData);
         }
 
-        hideLoading();
-
     } catch (error) {
-        hideLoading();
+        // Ignore errors from stale requests to avoid flicker/noise in UI.
+        if (requestId !== activeFetchRequestId) return;
         console.error('Error filtrando datos:', error);
         showError('Error al cargar datos filtrados.');
+    } finally {
+        if (requestId === activeFetchRequestId) {
+            hideLoading();
+        }
     }
 }
 
@@ -561,6 +665,8 @@ function clearFilters() {
     document.getElementById('filter-rodeo').value = '';
     document.getElementById('filter-supracategoria').value = '';
     document.getElementById('filter-categoria').value = '';
+    updateSupracategoriaFilterOptions();
+    updateCategoryFilterOptions();
 
     fetchFilteredData();
 }
@@ -1341,7 +1447,6 @@ function exportMatrixToPDF() {
     }
 
     try {
-        const { jsPDF } = window.jspdf;
         const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
         const pageWidth = doc.internal.pageSize.getWidth();
         const pageHeight = doc.internal.pageSize.getHeight();
@@ -1620,8 +1725,8 @@ async function initializeDashboard() {
     // Other filters
     document.getElementById('filter-campo').addEventListener('change', fetchFilteredData);
     document.getElementById('filter-rodeo').addEventListener('change', fetchFilteredData);
-    document.getElementById('filter-supracategoria').addEventListener('change', fetchFilteredData);
-    document.getElementById('filter-categoria').addEventListener('change', fetchFilteredData);
+    document.getElementById('filter-supracategoria').addEventListener('change', handleSupracategoriaChange);
+    document.getElementById('filter-categoria').addEventListener('change', handleCategoriaChange);
     document.getElementById('clear-filters-btn').addEventListener('click', clearFilters);
 
     // Setup KPI card clicks
@@ -1633,12 +1738,10 @@ async function initializeDashboard() {
 
 // ===== EVENT LISTENERS =====
 document.addEventListener('DOMContentLoaded', () => {
-    // Login form
-    document.getElementById('login-form').addEventListener('submit', handleLogin);
+    // Login: manejado por React (src/components/Login.jsx)
 
     // Logout button
     document.getElementById('logout-btn').addEventListener('click', handleLogout);
 
-    // Check authentication on load
-    checkAuth();
+    // Sesión inicial: src/App.jsx llama notifyAuthSession tras getSession()
 });
