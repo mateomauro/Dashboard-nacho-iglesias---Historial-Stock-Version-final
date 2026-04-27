@@ -19,8 +19,8 @@
     <!-- Dot-grid background pattern -->
     <div class="bg-grid" aria-hidden="true"></div>
 
-    <!-- Login: rendered by React (misma estructura y clases CSS) -->
-    <div id="login-portal-target"></div>
+    <!-- React: login (sin sesión) y shell; mismo orden visual que antes -->
+    <div id="react-root"></div>
 
     <!-- Loading Overlay (Global) -->
     <div id="loading-overlay" class="loading-overlay">
@@ -615,7 +615,6 @@
         </div>
     </div>
 
-    <div id="react-root"></div>
     <script type="module" src="/app.js"></script>
     <script type="module" src="/src/main.jsx"></script>
 </body>

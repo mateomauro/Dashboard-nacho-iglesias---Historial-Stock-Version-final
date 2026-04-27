@@ -106,6 +106,7 @@ body {
 }
 
 /* Stack above grid */
+#react-root,
 .login-container,
 .loading-overlay,
 .api-error,
