@@ -1150,13 +1150,19 @@ body {
 
 .header-cat th {
     background-color: #e2f0d9;
-    color: #2e5926;
+    color: #0f172a;
     font-size: 0.7rem;
     font-weight: 600;
     border-bottom: 2px solid var(--border-strong);
     position: sticky;
     top: 61px; /* Match height supra - 1px */
     z-index: 19;
+}
+
+/* Línea vertical negra entre supracategorías (misma lógica que el PDF) */
+.matrix-table th.col-supra-boundary,
+.matrix-table td.col-supra-boundary {
+    border-left: 3px solid #0a0a0a !important;
 }
 
 /* Sticky Columns for Campo & Rodeo */
@@ -1191,7 +1197,7 @@ body {
 .header-cat th.col-sticky {
     z-index: 29;
     background-color: #e2f0d9 !important;
-    color: #2e5926 !important;
+    color: #0f172a !important;
 }
 
 .matrix-table th.col-sticky {
@@ -1254,13 +1260,18 @@ body {
 .matrix-table tr.row-total-campo td {
     background-color: #f8cbad !important;
     font-weight: 700;
-    color: #b45309;
+    color: #0f172a;
 }
 
 .matrix-table tr.row-total-general td,
 .matrix-table tr.row-total-general th {
     background-color: #f29a59 !important;
-    color: white;
+    color: #0f172a;
+    font-weight: 700;
+}
+
+.matrix-table tr.row-total-general td.col-totales {
+    color: #0f172a;
     font-weight: 700;
 }
 
@@ -1268,7 +1279,7 @@ body {
 .matrix-table tr.row-total-general th.col-sticky,
 .matrix-table tr.row-total-general td.col-sticky {
     background-color: #f29a59 !important;
-    color: white !important;
+    color: #0f172a !important;
 }
 
 .matrix-table tr.row-total-campo td.col-sticky,

@@ -1526,6 +1526,11 @@ function updateMatrixTable(data) {
     });
 
     const ALL_VISIBLE_CATS = Object.values(visibleStructure).flat();
+    const firstCatInSupra = new Set();
+    Object.keys(visibleStructure).forEach(supra => {
+        const cats = visibleStructure[supra];
+        if (cats.length) firstCatInSupra.add(cats[0]);
+    });
 
     // 5. Calculate supra subtotals (excluye cats sin suma en supra)
     const supraSubtotals = {};
@@ -1542,7 +1547,7 @@ function updateMatrixTable(data) {
             <th class="col-sticky col-rodeo">Rodeo</th>
             <th class="col-sticky col-totales" style="z-index: 50;">TOTALES</th>
             ${Object.keys(visibleStructure).map(supra => `
-                <th colspan="${visibleStructure[supra].length}" class="group-${supra.toLowerCase()}">${supra}<br><span class="supra-subtotal">${supraSubtotals[supra].toLocaleString('es-AR')}</span></th>
+                <th colspan="${visibleStructure[supra].length}" class="group-${supra.toLowerCase()} col-supra-boundary">${supra}<br><span class="supra-subtotal">${supraSubtotals[supra].toLocaleString('es-AR')}</span></th>
             `).join('')}
         </tr>
         <tr class="header-cat">
@@ -1550,7 +1555,9 @@ function updateMatrixTable(data) {
             <th class="col-sticky col-rodeo header-filler" style="border-top: none;"></th>
             <th class="col-sticky col-totales header-filler" style="border-top: none; z-index: 49;"></th>
             ${Object.keys(visibleStructure).flatMap(supra =>
-        visibleStructure[supra].map(cat => `<th class="sub-cat group-${supra.toLowerCase()}">${cat}</th>`)
+        visibleStructure[supra].map((cat, idx) =>
+            `<th class="sub-cat group-${supra.toLowerCase()}${idx === 0 ? ' col-supra-boundary' : ''}">${cat}</th>`
+        )
     ).join('')}
         </tr>
     `;
@@ -1572,7 +1579,8 @@ function updateMatrixTable(data) {
     html += `<td class="col-totales">${generalTotals.Total.toLocaleString('es-AR')}</td>`;
     ALL_VISIBLE_CATS.forEach(col => {
         const val = generalTotals[col];
-        html += `<td>${val > 0 ? val.toLocaleString('es-AR') : ''}</td>`;
+        const bc = firstCatInSupra.has(col) ? ' class="col-supra-boundary"' : '';
+        html += `<td${bc}>${val > 0 ? val.toLocaleString('es-AR') : ''}</td>`;
     });
     html += `</tr>`;
 
@@ -1596,7 +1604,8 @@ function updateMatrixTable(data) {
             html += `<td class="col-totales">${rodeoData.Total > 0 ? rodeoData.Total.toLocaleString('es-AR') : ''}</td>`;
             ALL_VISIBLE_CATS.forEach(col => {
                 const val = rodeoData[col];
-                html += `<td>${val > 0 ? val.toLocaleString('es-AR') : ''}</td>`;
+                const bc = firstCatInSupra.has(col) ? ' class="col-supra-boundary"' : '';
+                html += `<td${bc}>${val > 0 ? val.toLocaleString('es-AR') : ''}</td>`;
             });
             html += `</tr>`;
         });
@@ -1609,7 +1618,8 @@ function updateMatrixTable(data) {
             html += `<td class="col-totales">${campoData.totalCampo > 0 ? campoData.totalCampo.toLocaleString('es-AR') : ''}</td>`;
             ALL_VISIBLE_CATS.forEach(col => {
                 const val = campoData.campoTotals[col];
-                html += `<td>${val > 0 ? val.toLocaleString('es-AR') : ''}</td>`;
+                const bc = firstCatInSupra.has(col) ? ' class="col-supra-boundary"' : '';
+                html += `<td${bc}>${val > 0 ? val.toLocaleString('es-AR') : ''}</td>`;
             });
             html += `</tr>`;
         }
@@ -1707,10 +1717,9 @@ function exportMatrixToPDF() {
         const C_SUPRA_BG = [169, 209, 142];
         const C_SUPRA_TXT = [26, 66, 20];
         const C_CAT_BG = [226, 240, 217];
-        const C_CAT_TXT = [46, 89, 38];
         const C_TOT_BG = [255, 242, 204];
         const C_GEN_BG = [242, 154, 89];
-        const C_GEN_TXT = [255, 255, 255];
+        const C_GEN_TXT = [0, 0, 0];
         const C_CAMPO_BG = [252, 228, 214];
         const C_STICK_BG = [248, 250, 252];
         const C_WHITE = [255, 255, 255];
@@ -1722,12 +1731,12 @@ function exportMatrixToPDF() {
         // Fila GENERAL
         const generalRow = [
             { content: 'GENERAL', styles: { fontStyle: 'bold', fillColor: C_GEN_BG, textColor: C_GEN_TXT, halign: 'left' } },
-            { content: '', styles: { fillColor: C_GEN_BG, textColor: C_GEN_TXT } },
+            { content: '', styles: { fontStyle: 'bold', fillColor: C_GEN_BG, textColor: C_GEN_TXT } },
             { content: generalTotals.Total.toLocaleString('es-AR'), styles: { fontStyle: 'bold', fillColor: C_GEN_BG, textColor: C_GEN_TXT, halign: 'center' } }
         ];
         ALL_ACTIVE_CATS.forEach(cat => {
             const v = generalTotals[cat] || 0;
-            generalRow.push({ content: v > 0 ? v.toLocaleString('es-AR') : '', styles: { fillColor: C_GEN_BG, textColor: C_GEN_TXT, halign: 'center' } });
+            generalRow.push({ content: v > 0 ? v.toLocaleString('es-AR') : '', styles: { fontStyle: 'bold', fillColor: C_GEN_BG, textColor: C_GEN_TXT, halign: 'center' } });
         });
         body.push(generalRow);
 
@@ -1754,13 +1763,13 @@ function exportMatrixToPDF() {
 
             // Total campo
             const ctRow = [
-                { content: '', styles: { fillColor: C_CAMPO_BG } },
-                { content: 'Total', styles: { fontStyle: 'bold', halign: 'right', fillColor: C_CAMPO_BG } },
-                { content: campoData.totalCampo > 0 ? campoData.totalCampo.toLocaleString('es-AR') : '', styles: { fontStyle: 'bold', fillColor: C_CAMPO_BG, halign: 'center' } }
+                { content: '', styles: { fontStyle: 'bold', fillColor: C_CAMPO_BG, textColor: C_DARK } },
+                { content: 'Total', styles: { fontStyle: 'bold', halign: 'right', fillColor: C_CAMPO_BG, textColor: C_DARK } },
+                { content: campoData.totalCampo > 0 ? campoData.totalCampo.toLocaleString('es-AR') : '', styles: { fontStyle: 'bold', fillColor: C_CAMPO_BG, textColor: C_DARK, halign: 'center' } }
             ];
             ALL_ACTIVE_CATS.forEach(cat => {
                 const v = campoData.campoTotals[cat] || 0;
-                ctRow.push({ content: v > 0 ? v.toLocaleString('es-AR') : '', styles: { fontStyle: 'bold', fillColor: C_CAMPO_BG, halign: 'center' } });
+                ctRow.push({ content: v > 0 ? v.toLocaleString('es-AR') : '', styles: { fontStyle: 'bold', fillColor: C_CAMPO_BG, textColor: C_DARK, halign: 'center' } });
             });
             body.push(ctRow);
         });
@@ -1835,7 +1844,7 @@ function exportMatrixToPDF() {
             activeCatsStructure[supra].forEach(cat => {
                 headRow2.push({
                     content: cat,
-                    styles: { fillColor: C_CAT_BG, textColor: C_CAT_TXT, fontStyle: 'normal', halign: 'center' }
+                    styles: { fillColor: C_CAT_BG, textColor: [0, 0, 0], fontStyle: 'normal', halign: 'center' }
                 });
             });
         });
@@ -1849,6 +1858,13 @@ function exportMatrixToPDF() {
         const slack = Math.max(0, usableHeight - 2 * headerRowH - bodyRowsCount * bodyRowH);
         const bodyMinH = bodyRowH + slack / bodyRowsCount;
 
+        // Índices de columna (0=Campo, 1=Rodeo, 2=TOT.) donde empieza cada supracategoría — borde izquierdo más grueso en el PDF
+        const supraLeftBorderCols = [];
+        let catCol = 3;
+        suprasWithData.forEach(supra => {
+            supraLeftBorderCols.push(catCol);
+            catCol += activeCatsStructure[supra].length;
+        });
         autoTable(doc, {
             head: [headRow1, headRow2],
             body: body,
@@ -1884,6 +1900,21 @@ function exportMatrixToPDF() {
             didParseCell: function (hookData) {
                 if (hookData.section === 'body' && hookData.column.index >= 2) {
                     hookData.cell.styles.fontSize = fontSize + 1;
+                }
+                if (hookData.section === 'head' && hookData.row.index === 1) {
+                    hookData.cell.styles.textColor = [0, 0, 0];
+                }
+            },
+            didDrawCell: function (hookData) {
+                const sec = hookData.section;
+                if ((sec === 'head' || sec === 'body') && supraLeftBorderCols.includes(hookData.column.index)) {
+                    const doc = hookData.doc;
+                    const cell = hookData.cell;
+                    doc.saveGraphicsState();
+                    doc.setDrawColor(0, 0, 0);
+                    doc.setLineWidth(0.55);
+                    doc.line(cell.x, cell.y, cell.x, cell.y + cell.height);
+                    doc.restoreGraphicsState();
                 }
             }
         });
