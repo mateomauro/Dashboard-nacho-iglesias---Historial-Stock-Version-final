@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel - Nacho Iglesias</title>
+    <meta name="description" content="Dashboard de historial de stock agroindustrial - Panel de Control Nacho Iglesias">
+    <!-- Google Fonts: Fira Code + Fira Sans (UI/UX Pro Max — Data-Dense Dashboard) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Fira+Sans:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="styles.css?v=6">
+</head>
+
+<body>
+    <!-- Dot-grid background pattern -->
+    <div class="bg-grid" aria-hidden="true"></div>
+
+    <!-- React: login (sin sesión) y shell; mismo orden visual que antes -->
+    <div id="react-root"></div>
+
+    <!-- Loading Overlay (Global) -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <p>Actualizando panel...</p>
+    </div>
+
+    <!-- API Error Message -->
+    <div id="api-error" class="api-error" role="alert" aria-live="polite"></div>
+
+    <!-- Dashboard -->
+    <div id="dashboard" class="dashboard-container" style="display: none;">
+        <!-- Topbar -->
+        <header class="topbar">
+            <div class="topbar-content">
+                <div class="topbar-left">
+                    <!-- SVG: BarChart2 (Lucide) -->
+                    <svg class="topbar-logo-icon" xmlns="http://www.w3.org/2000/svg" width="22" height="22"
+                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                        stroke-linejoin="round" aria-hidden="true">
+                        <line x1="18" y1="20" x2="18" y2="10"></line>
+                        <line x1="12" y1="20" x2="12" y2="4"></line>
+                        <line x1="6" y1="20" x2="6" y2="14"></line>
+                    </svg>
+                    <h1 class="topbar-title">Panel</h1>
+                    <span class="view-badge">Stock Histórico</span>
+                </div>
+                <div class="topbar-right">
+                    <span class="user-greeting">Hola, <strong>Nacho Iglesias</strong></span>
+                    <button id="logout-btn" class="btn-logout" aria-label="Cerrar sesión">
+                        <span class="logout-text">Cerrar sesión</span>
+                        <!-- SVG: LogOut (Lucide) -->
+                        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            aria-hidden="true">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                            <polyline points="16 17 21 12 16 7"></polyline>
+                            <line x1="21" y1="12" x2="9" y2="12"></line>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- View Mode Switcher -->
+            <div class="view-switcher-container">
+                <div class="view-switcher" role="tablist" aria-label="Cambiar vista">
+                    <button id="view-tab-dashboard" class="view-tab active" role="tab" aria-selected="true"
+                        aria-controls="view-dashboard">
+                        <!-- SVG: LayoutDashboard (Lucide) -->
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            aria-hidden="true">
+                            <rect x="3" y="3" width="7" height="9" rx="1" />
+                            <rect x="14" y="3" width="7" height="5" rx="1" />
+                            <rect x="14" y="12" width="7" height="9" rx="1" />
+                            <rect x="3" y="16" width="7" height="5" rx="1" />
+                        </svg>
+                        Dashboard
+                    </button>
+                    <button id="view-tab-informe" class="view-tab" role="tab" aria-selected="false"
+                        aria-controls="view-informe">
+                        <!-- SVG: FileText (Lucide) -->
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            aria-hidden="true">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                            <polyline points="14 2 14 8 20 8" />
+                            <line x1="16" y1="13" x2="8" y2="13" />
+                            <line x1="16" y1="17" x2="8" y2="17" />
+                            <polyline points="10 9 9 9 8 9" />
+                        </svg>
+                        Informe
+                    </button>
+                    <button id="view-tab-matrix" class="view-tab" role="tab" aria-selected="false"
+                        aria-controls="view-matrix">
+                        <!-- SVG: Grid (Lucide) -->
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            aria-hidden="true">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                            <line x1="3" y1="9" x2="21" y2="9" />
+                            <line x1="3" y1="15" x2="21" y2="15" />
+                            <line x1="9" y1="3" x2="9" y2="21" />
+                            <line x1="15" y1="3" x2="15" y2="21" />
+                        </svg>
+                        Tabla
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filter Section (Shared between views) -->
+            <section class="filter-section" aria-labelledby="filters-heading">
+                <div class="section-header">
+                    <h2 id="filters-heading" class="section-title">Filtros Avanzados</h2>
+                    <div id="active-filters-indicator" class="active-filters-badge" style="display: none;">
+                        <span class="pulse-dot"></span>
+                        Filtros activos
+                    </div>
+                </div>
+                <div class="filter-panel">
+                    <div class="filter-grid">
+                        <div class="filter-group filter-group--date">
+                            <label>Fecha</label>
+                            <!-- Mode pills -->
+                            <div class="date-mode-pills" role="group" aria-label="Modo de filtro de fecha">
+                                <button type="button" class="date-pill active" data-mode="preset" id="date-pill-preset"
+                                    aria-pressed="true">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                                        stroke-linejoin="round" aria-hidden="true">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <polyline points="12 6 12 12 16 14" />
+                                    </svg>
+                                    Período
+                                </button>
+                                <button type="button" class="date-pill" data-mode="single" id="date-pill-single"
+                                    aria-pressed="false">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                                        stroke-linejoin="round" aria-hidden="true">
+                                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                                        <line x1="16" y1="2" x2="16" y2="6" />
+                                        <line x1="8" y1="2" x2="8" y2="6" />
+                                        <line x1="3" y1="10" x2="21" y2="10" />
+                                    </svg>
+                                    Día
+                                </button>
+                                <button type="button" class="date-pill" data-mode="range" id="date-pill-range"
+                                    aria-pressed="false">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24"
+                                        fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                                        stroke-linejoin="round" aria-hidden="true">
+                                        <line x1="8" y1="6" x2="21" y2="6" />
+                                        <line x1="8" y1="12" x2="21" y2="12" />
+                                        <line x1="8" y1="18" x2="21" y2="18" />
+                                        <line x1="3" y1="6" x2="3.01" y2="6" />
+                                        <line x1="3" y1="12" x2="3.01" y2="12" />
+                                        <line x1="3" y1="18" x2="3.01" y2="18" />
+                                    </svg>
+                                    Rango
+                                </button>
+                            </div>
+
+                            <!-- Mode: Preset period -->
+                            <div class="date-input-panel" id="date-panel-preset">
+                                <div class="select-wrapper">
+                                    <select id="filter-date" class="filter-select">
+                                        <option value="all">Todo el historial</option>
+                                        <option value="7days">Últimos 7 días</option>
+                                        <option value="30days">Últimos 30 días</option>
+                                        <option value="thismonth">Este mes</option>
+                                        <option value="lastmonth">Mes anterior</option>
+                                        <option value="thisyear">Este año</option>
+                                    </select>
+                                    <svg class="select-chevron" xmlns="http://www.w3.org/2000/svg" width="12"
+                                        height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                        stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+                                        aria-hidden="true">
+                                        <polyline points="6 9 12 15 18 9"></polyline>
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <!-- Mode: Single date -->
+                            <div class="date-input-panel" id="date-panel-single" style="display:none;">
+                                <div class="select-wrapper">
+                                    <select id="filter-date-single" class="filter-select" aria-label="Seleccionar fecha disponible">
+                                        <option value="">Cargando fechas...</option>
+                                    </select>
+                                    <svg class="select-chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12"
+                                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                                        stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <polyline points="6 9 12 15 18 9"></polyline>
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <!-- Mode: Date range -->
+                            <div class="date-input-panel" id="date-panel-range" style="display:none;">
+                                <div class="date-range-inputs">
+                                    <div class="date-input-wrapper">
+                                        <svg class="date-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                                            <line x1="16" y1="2" x2="16" y2="6" />
+                                            <line x1="8" y1="2" x2="8" y2="6" />
+                                            <line x1="3" y1="10" x2="21" y2="10" />
+                                        </svg>
+                                        <input type="date" id="filter-date-from" class="filter-date-input"
+                                            aria-label="Fecha desde">
+                                    </div>
+                                    <span class="range-separator" aria-hidden="true">→</span>
+                                    <div class="date-input-wrapper">
+                                        <svg class="date-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                            stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                                            <line x1="16" y1="2" x2="16" y2="6" />
+                                            <line x1="8" y1="2" x2="8" y2="6" />
+                                            <line x1="3" y1="10" x2="21" y2="10" />
+                                        </svg>
+                                        <input type="date" id="filter-date-to" class="filter-date-input"
+                                            aria-label="Fecha hasta">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="filter-group">
+                            <label for="filter-campo">Campo</label>
+                            <div class="select-wrapper">
+                                <select id="filter-campo" class="filter-select">
+                                    <option value="">Todos</option>
+                                </select>
+                                <svg class="select-chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12"
+                                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <polyline points="6 9 12 15 18 9"></polyline>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="filter-group">
+                            <label for="filter-rodeo">Rodeo</label>
+                            <div class="select-wrapper">
+                                <select id="filter-rodeo" class="filter-select">
+                                    <option value="">Todos</option>
+                                </select>
+                                <svg class="select-chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12"
+                                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <polyline points="6 9 12 15 18 9"></polyline>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="filter-group">
+                            <label for="filter-supracategoria">Supracategoría</label>
+                            <div class="select-wrapper">
+                                <select id="filter-supracategoria" class="filter-select">
+                                    <option value="">Todas</option>
+                                </select>
+                                <svg class="select-chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12"
+                                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <polyline points="6 9 12 15 18 9"></polyline>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="filter-group">
+                            <label for="filter-categoria">Categoría</label>
+                            <div class="select-wrapper">
+                                <select id="filter-categoria" class="filter-select">
+                                    <option value="">Todas</option>
+                                </select>
+                                <svg class="select-chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12"
+                                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
+                                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <polyline points="6 9 12 15 18 9"></polyline>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="filter-actions">
+                            <label aria-hidden="true" style="visibility: hidden; user-select: none;">&nbsp;</label>
+                            <button id="clear-filters-btn" class="btn-clear" disabled>
+                                <!-- SVG: X (Lucide) -->
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                                    stroke-linejoin="round" aria-hidden="true">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                                <span>Limpiar</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Dashboard View Panel -->
+            <div id="view-dashboard" class="view-panel active" role="tabpanel" aria-labelledby="view-tab-dashboard">
+                <!-- KPI Cards -->
+                <section class="kpi-section" aria-label="Métricas clave">
+                    <div class="kpi-grid">
+                        <!-- Stock Card -->
+                        <div class="kpi-card clickable kpi-blue" id="card-stock">
+                            <div class="kpi-icon-container blue" aria-hidden="true">
+                                <!-- SVG: BarChart2 (Lucide) -->
+                                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <line x1="18" y1="20" x2="18" y2="10"></line>
+                                    <line x1="12" y1="20" x2="12" y2="4"></line>
+                                    <line x1="6" y1="20" x2="6" y2="14"></line>
+                                </svg>
+                            </div>
+                            <div class="kpi-content">
+                                <p class="kpi-label">Stock Total</p>
+                                <div class="kpi-value-container">
+                                    <p class="kpi-value" id="kpi-stock">0</p>
+                                    <div class="skeleton-text skeleton-value"></div>
+                                </div>
+                                <div class="kpi-summary" id="kpi-stock-summary">
+                                    <!-- Populated by JS -->
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Campos Card -->
+                        <div class="kpi-card clickable kpi-green" id="card-campos">
+                            <div class="kpi-icon-container green" aria-hidden="true">
+                                <!-- SVG: Layers (Lucide) -->
+                                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                                    <polyline points="2 17 12 22 22 17"></polyline>
+                                    <polyline points="2 12 12 17 22 12"></polyline>
+                                </svg>
+                            </div>
+                            <div class="kpi-content">
+                                <p class="kpi-label">Campos Activos</p>
+                                <div class="kpi-value-container">
+                                    <p class="kpi-value" id="kpi-campos">0</p>
+                                    <div class="skeleton-text skeleton-value"></div>
+                                </div>
+                                <div class="kpi-summary" id="kpi-campos-summary">
+                                    <!-- Populated by JS -->
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Rodeos Card -->
+                        <div class="kpi-card clickable kpi-amber" id="card-rodeos">
+                            <div class="kpi-icon-container orange" aria-hidden="true">
+                                <!-- SVG: Circle (Lucide, represents corrals/rodeos) -->
+                                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <circle cx="12" cy="10" r="3"></circle>
+                                    <path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"></path>
+                                </svg>
+                            </div>
+                            <div class="kpi-content">
+                                <p class="kpi-label">Rodeos</p>
+                                <div class="kpi-value-container">
+                                    <p class="kpi-value" id="kpi-rodeos">0</p>
+                                    <div class="skeleton-text skeleton-value"></div>
+                                </div>
+                                <div class="kpi-summary" id="kpi-rodeos-summary">
+                                    <!-- Populated by JS -->
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Categorías Card -->
+                        <div class="kpi-card clickable kpi-purple" id="card-categorias">
+                            <div class="kpi-icon-container purple" aria-hidden="true">
+                                <!-- SVG: Tag (Lucide) -->
+                                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round">
+                                    <path
+                                        d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z">
+                                    </path>
+                                    <line x1="7" y1="7" x2="7.01" y2="7"></line>
+                                </svg>
+                            </div>
+                            <div class="kpi-content">
+                                <p class="kpi-label">Categorías</p>
+                                <div class="kpi-value-container">
+                                    <p class="kpi-value" id="kpi-categorias">0</p>
+                                    <div class="skeleton-text skeleton-value"></div>
+                                </div>
+                                <div class="kpi-summary" id="kpi-categorias-summary">
+                                    <!-- Populated by JS -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Chart Section -->
+                <section class="chart-section" aria-labelledby="chart-heading">
+                    <div class="section-header">
+                        <h2 id="chart-heading" class="section-title">Evolución de Stock</h2>
+                    </div>
+                    <div class="chart-card">
+                        <div id="chart-loading" class="chart-skeleton">
+                            <div class="skeleton-line"></div>
+                            <div class="skeleton-line"></div>
+                            <div class="skeleton-line"></div>
+                        </div>
+                        <div id="chart-summary" class="chart-summary" style="display:none;"></div>
+                        <div class="chart-container">
+                            <canvas id="stock-chart"></canvas>
+                        </div>
+                        <div id="no-data-message" class="empty-state" style="display: none;">
+                            <!-- SVG: FolderOpen (Lucide) -->
+                            <svg class="empty-icon" xmlns="http://www.w3.org/2000/svg" width="40" height="40"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z">
+                                </path>
+                                <line x1="12" y1="11" x2="12" y2="17"></line>
+                                <line x1="9" y1="14" x2="15" y2="14"></line>
+                            </svg>
+                            <p>No se encontraron datos para los filtros seleccionados</p>
+                        </div>
+                    </div>
+                </section>
+            </div> <!-- End Dashboard View Panel -->
+
+            <!-- Informe View Panel -->
+            <div id="view-informe" class="view-panel" style="display: none;" role="tabpanel"
+                aria-labelledby="view-tab-informe">
+                <section class="informe-section" aria-labelledby="informe-heading">
+                    <div class="section-header">
+                        <h2 id="informe-heading" class="section-title">Detalle de Registros</h2>
+                        <button id="btn-export-csv" class="btn-secondary" aria-label="Exportar a CSV">
+                            <!-- SVG: Download (Lucide) -->
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" aria-hidden="true">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                <polyline points="7 10 12 15 17 10" />
+                                <line x1="12" y1="15" x2="12" y2="3" />
+                            </svg>
+                            Exportar CSV
+                        </button>
+                    </div>
+                    <div class="table-container-card">
+                        <div class="table-responsive">
+                            <table class="data-table" id="informe-table">
+                                <thead>
+                                    <tr>
+                                        <th>Fecha</th>
+                                        <th>Campo</th>
+                                        <th>Rodeo</th>
+                                        <th>Supracategoría</th>
+                                        <th>Categoría</th>
+                                        <th class="text-right">Cantidad</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="informe-table-body">
+                                    <!-- Populated via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="informe-empty-state" class="empty-state" style="display: none;">
+                            <svg class="empty-icon" xmlns="http://www.w3.org/2000/svg" width="40" height="40"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z">
+                                </path>
+                                <line x1="12" y1="11" x2="12" y2="17"></line>
+                                <line x1="9" y1="14" x2="15" y2="14"></line>
+                            </svg>
+                            <p>No se encontraron registros para los filtros seleccionados</p>
+                        </div>
+                        <div id="informe-loading" class="chart-skeleton" style="display: none;">
+                            <div class="skeleton-line"></div>
+                            <div class="skeleton-line"></div>
+                            <div class="skeleton-line"></div>
+                            <div class="skeleton-line"></div>
+                        </div>
+                    </div>
+                </section>
+            </div> <!-- End Informe View Panel -->
+
+            <!-- Matrix Tabla View Panel -->
+            <div id="view-matrix" class="view-panel" style="display: none;" role="tabpanel"
+                aria-labelledby="view-tab-matrix">
+                <section class="matrix-section" aria-labelledby="matrix-heading">
+                    <div class="section-header">
+                        <h2 id="matrix-heading" class="section-title">Tabla de Stock</h2>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <button id="btn-fullscreen-matrix" class="btn-secondary" aria-label="Pantalla Completa">
+                                <svg class="icon-fullscreen" xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+                                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path
+                                        d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+                                </svg>
+                                <svg class="icon-minimize" xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+                                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M8 3v3h-3m18-3v3h3m-18 12v-3h-3m18 3v-3h3" />
+                                </svg>
+                                <span class="fullscreen-text">Pantalla Completa</span>
+                            </button>
+                            <button id="btn-export-matrix-xls" class="btn-secondary" aria-label="Exportar a XLS" style="display: none;">
+                                <!-- SVG: Download (Lucide) -->
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                    <polyline points="7 10 12 15 17 10" />
+                                    <line x1="12" y1="15" x2="12" y2="3" />
+                                </svg>
+                                Exportar Excel
+                            </button>
+                            <button id="btn-export-matrix-pdf" class="btn-secondary" aria-label="Exportar a PDF">
+                                <!-- SVG: FileText (Lucide) -->
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                    <polyline points="14 2 14 8 20 8" />
+                                    <line x1="16" y1="13" x2="8" y2="13" />
+                                    <line x1="16" y1="17" x2="8" y2="17" />
+                                    <polyline points="10 9 9 9 8 9" />
+                                </svg>
+                                Exportar PDF
+                            </button>
+                        </div>
+                    </div>
+                    <div class="table-container-card">
+                        <div class="table-responsive matrix-responsive">
+                            <table class="matrix-table" id="matrix-table">
+                                <thead>
+                                    <!-- Dynamic header injected via JS -->
+                                </thead>
+                                <tbody id="matrix-table-body">
+                                    <!-- Populated via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="matrix-empty-state" class="empty-state" style="display: none;">
+                            <svg class="empty-icon" xmlns="http://www.w3.org/2000/svg" width="40" height="40"
+                                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+                                stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z">
+                                </path>
+                                <line x1="12" y1="11" x2="12" y2="17"></line>
+                                <line x1="9" y1="14" x2="15" y2="14"></line>
+                            </svg>
+                            <p>No se encontraron registros para los filtros seleccionados</p>
+                        </div>
+                        <div id="matrix-loading" class="chart-skeleton" style="display: none;">
+                            <div class="skeleton-line"></div>
+                            <div class="skeleton-line"></div>
+                            <div class="skeleton-line"></div>
+                        </div>
+                    </div>
+                </section>
+            </div> <!-- End Matrix View Panel -->
+
+        </main>
+    </div>
+
+    <!-- Side Panel (Drawer) for detailed exploration -->
+    <div id="side-panel-overlay" class="panel-overlay">
+        <div class="panel-container">
+            <div class="panel-header">
+                <div class="panel-title-group">
+                    <h3 id="panel-title">Detalles</h3>
+                    <p id="panel-subtitle" class="panel-subtitle">Explora todos los ítems disponibles</p>
+                </div>
+                <button id="close-panel" class="btn-close-panel" aria-label="Cerrar panel">
+                    <!-- SVG: X (Lucide) -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+                        aria-hidden="true">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="panel-search">
+                <div class="search-field">
+                    <!-- SVG: Search (Lucide) -->
+                    <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <input type="text" id="panel-search-input" placeholder="Buscar por nombre..."
+                        aria-label="Buscar ítem">
+                </div>
+            </div>
+
+            <div class="panel-content">
+                <ul id="panel-list" class="panel-list">
+                    <!-- Populated via JS -->
+                </ul>
+            </div>
+
+            <div class="panel-footer">
+                <p>Haz clic en un ítem para filtrar el dashboard</p>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="/app.js"></script>
+    <script type="module" src="/src/main.jsx"></script>
+</body>
+
+</html>
