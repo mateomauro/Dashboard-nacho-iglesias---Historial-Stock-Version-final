@@ -12,7 +12,7 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Fira+Sans:wght@300;400;500;600;700&display=swap"
         rel="stylesheet">
-    <link rel="stylesheet" href="styles.css?v=9">
+    <link rel="stylesheet" href="styles.css?v=11">
 </head>
 
 <body>
@@ -123,6 +123,7 @@
                         Filtros activos
                     </div>
                 </div>
+                <div id="active-filter-chips" class="filter-chips" hidden></div>
                 <div class="filter-panel">
                     <div class="filter-grid">
                         <div class="filter-group filter-group--date">
@@ -233,55 +234,111 @@
                             </div>
                         </div>
                         <div class="filter-group">
-                            <label for="filter-campo">Campo</label>
-                            <div class="select-wrapper">
-                                <select id="filter-campo" class="filter-select">
-                                    <option value="">Todos</option>
-                                </select>
-                                <svg class="select-chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12"
-                                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-                                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                    <polyline points="6 9 12 15 18 9"></polyline>
-                                </svg>
+                            <label for="filter-campo-trigger">Campo</label>
+                            <div class="multi-filter" id="filter-campo" data-filter-id="filter-campo" data-filter-key="Campo">
+                                <button type="button" id="filter-campo-trigger" class="multi-filter-trigger" aria-haspopup="listbox" aria-expanded="false">
+                                    <span class="multi-filter-label">Todos los campos</span>
+                                    <span class="multi-filter-count" aria-hidden="true" hidden>0</span>
+                                    <svg class="multi-filter-chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <polyline points="6 9 12 15 18 9"></polyline>
+                                    </svg>
+                                </button>
+                                <div class="multi-filter-panel" role="dialog" aria-label="Seleccionar campos" hidden>
+                                    <div class="multi-filter-search-wrapper">
+                                        <svg class="multi-filter-search-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <circle cx="11" cy="11" r="8"></circle>
+                                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                        </svg>
+                                        <input type="text" class="multi-filter-search" placeholder="Buscar campo..." aria-label="Buscar campo">
+                                    </div>
+                                    <div class="multi-filter-actions">
+                                        <button type="button" class="multi-filter-action" data-action="all">Seleccionar todos</button>
+                                        <button type="button" class="multi-filter-action" data-action="clear">Limpiar</button>
+                                    </div>
+                                    <ul class="multi-filter-list" role="listbox" aria-multiselectable="true"></ul>
+                                    <p class="multi-filter-empty" hidden>Sin resultados</p>
+                                </div>
                             </div>
                         </div>
                         <div class="filter-group">
-                            <label for="filter-rodeo">Rodeo</label>
-                            <div class="select-wrapper">
-                                <select id="filter-rodeo" class="filter-select">
-                                    <option value="">Todos</option>
-                                </select>
-                                <svg class="select-chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12"
-                                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-                                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                    <polyline points="6 9 12 15 18 9"></polyline>
-                                </svg>
+                            <label for="filter-rodeo-trigger">Rodeo</label>
+                            <div class="multi-filter" id="filter-rodeo" data-filter-id="filter-rodeo" data-filter-key="Rodeo">
+                                <button type="button" id="filter-rodeo-trigger" class="multi-filter-trigger" aria-haspopup="listbox" aria-expanded="false">
+                                    <span class="multi-filter-label">Todos los rodeos</span>
+                                    <span class="multi-filter-count" aria-hidden="true" hidden>0</span>
+                                    <svg class="multi-filter-chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <polyline points="6 9 12 15 18 9"></polyline>
+                                    </svg>
+                                </button>
+                                <div class="multi-filter-panel" role="dialog" aria-label="Seleccionar rodeos" hidden>
+                                    <div class="multi-filter-search-wrapper">
+                                        <svg class="multi-filter-search-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <circle cx="11" cy="11" r="8"></circle>
+                                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                        </svg>
+                                        <input type="text" class="multi-filter-search" placeholder="Buscar rodeo..." aria-label="Buscar rodeo">
+                                    </div>
+                                    <div class="multi-filter-actions">
+                                        <button type="button" class="multi-filter-action" data-action="all">Seleccionar todos</button>
+                                        <button type="button" class="multi-filter-action" data-action="clear">Limpiar</button>
+                                    </div>
+                                    <ul class="multi-filter-list" role="listbox" aria-multiselectable="true"></ul>
+                                    <p class="multi-filter-empty" hidden>Sin resultados</p>
+                                </div>
                             </div>
                         </div>
                         <div class="filter-group">
-                            <label for="filter-supracategoria">Supracategoría</label>
-                            <div class="select-wrapper">
-                                <select id="filter-supracategoria" class="filter-select">
-                                    <option value="">Todas</option>
-                                </select>
-                                <svg class="select-chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12"
-                                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-                                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                    <polyline points="6 9 12 15 18 9"></polyline>
-                                </svg>
+                            <label for="filter-supracategoria-trigger">Supracategoría</label>
+                            <div class="multi-filter" id="filter-supracategoria" data-filter-id="filter-supracategoria" data-filter-key="Supracategoria">
+                                <button type="button" id="filter-supracategoria-trigger" class="multi-filter-trigger" aria-haspopup="listbox" aria-expanded="false">
+                                    <span class="multi-filter-label">Todas las supracategorías</span>
+                                    <span class="multi-filter-count" aria-hidden="true" hidden>0</span>
+                                    <svg class="multi-filter-chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <polyline points="6 9 12 15 18 9"></polyline>
+                                    </svg>
+                                </button>
+                                <div class="multi-filter-panel" role="dialog" aria-label="Seleccionar supracategorías" hidden>
+                                    <div class="multi-filter-search-wrapper">
+                                        <svg class="multi-filter-search-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <circle cx="11" cy="11" r="8"></circle>
+                                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                        </svg>
+                                        <input type="text" class="multi-filter-search" placeholder="Buscar supracategoría..." aria-label="Buscar supracategoría">
+                                    </div>
+                                    <div class="multi-filter-actions">
+                                        <button type="button" class="multi-filter-action" data-action="all">Seleccionar todas</button>
+                                        <button type="button" class="multi-filter-action" data-action="clear">Limpiar</button>
+                                    </div>
+                                    <ul class="multi-filter-list" role="listbox" aria-multiselectable="true"></ul>
+                                    <p class="multi-filter-empty" hidden>Sin resultados</p>
+                                </div>
                             </div>
                         </div>
                         <div class="filter-group">
-                            <label for="filter-categoria">Categoría</label>
-                            <div class="select-wrapper">
-                                <select id="filter-categoria" class="filter-select">
-                                    <option value="">Todas</option>
-                                </select>
-                                <svg class="select-chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12"
-                                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"
-                                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                                    <polyline points="6 9 12 15 18 9"></polyline>
-                                </svg>
+                            <label for="filter-categoria-trigger">Categoría</label>
+                            <div class="multi-filter" id="filter-categoria" data-filter-id="filter-categoria" data-filter-key="Categoria">
+                                <button type="button" id="filter-categoria-trigger" class="multi-filter-trigger" aria-haspopup="listbox" aria-expanded="false">
+                                    <span class="multi-filter-label">Todas las categorías</span>
+                                    <span class="multi-filter-count" aria-hidden="true" hidden>0</span>
+                                    <svg class="multi-filter-chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                        <polyline points="6 9 12 15 18 9"></polyline>
+                                    </svg>
+                                </button>
+                                <div class="multi-filter-panel" role="dialog" aria-label="Seleccionar categorías" hidden>
+                                    <div class="multi-filter-search-wrapper">
+                                        <svg class="multi-filter-search-icon" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                            <circle cx="11" cy="11" r="8"></circle>
+                                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                                        </svg>
+                                        <input type="text" class="multi-filter-search" placeholder="Buscar categoría..." aria-label="Buscar categoría">
+                                    </div>
+                                    <div class="multi-filter-actions">
+                                        <button type="button" class="multi-filter-action" data-action="all">Seleccionar todas</button>
+                                        <button type="button" class="multi-filter-action" data-action="clear">Limpiar</button>
+                                    </div>
+                                    <ul class="multi-filter-list" role="listbox" aria-multiselectable="true"></ul>
+                                    <p class="multi-filter-empty" hidden>Sin resultados</p>
+                                </div>
                             </div>
                         </div>
                         <div class="filter-actions">

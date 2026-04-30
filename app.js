@@ -13,6 +13,12 @@ const SESSION_DURATION = 60 * 60 * 1000; // 1 hora en milisegundos
 let activeFetchRequestId = 0;
 // Filas del último snapshot con Cantidad > 0 (base para los desplegables dependientes).
 let snapshotPositiveData = [];
+const RELATION_FILTER_CONFIG = [
+    { key: 'Campo', selectId: 'filter-campo', allLabel: 'Todos los campos' },
+    { key: 'Rodeo', selectId: 'filter-rodeo', allLabel: 'Todos los rodeos' },
+    { key: 'Supracategoria', selectId: 'filter-supracategoria', allLabel: 'Todas las supracategorías' },
+    { key: 'Categoria', selectId: 'filter-categoria', allLabel: 'Todas las categorías' },
+];
 
 // MATRIX CONFIGURATION
 const MATRIX_STRUCTURE = {
@@ -184,10 +190,10 @@ function switchDateMode(mode) {
 }
 
 function updateActiveFiltersIndicator() {
-    const campoValue = document.getElementById('filter-campo').value;
-    const rodeoValue = document.getElementById('filter-rodeo').value;
-    const supracategoriaValue = document.getElementById('filter-supracategoria').value;
-    const categoriaValue = document.getElementById('filter-categoria').value;
+    const campoValues = getSelectedValues('filter-campo');
+    const rodeoValues = getSelectedValues('filter-rodeo');
+    const supracategoriaValues = getSelectedValues('filter-supracategoria');
+    const categoriaValues = getSelectedValues('filter-categoria');
     const dateFilter = document.getElementById('filter-date').value;
     const singleDate = document.getElementById('filter-date-single').value;
     const dateFrom = document.getElementById('filter-date-from').value;
@@ -197,16 +203,83 @@ function updateActiveFiltersIndicator() {
         || (activeDateMode === 'single' && singleDate)
         || (activeDateMode === 'range' && (dateFrom || dateTo));
 
-    const hasActiveFilters = campoValue || rodeoValue || supracategoriaValue || categoriaValue || hasDateFilter;
+    const totalSelections = campoValues.length + rodeoValues.length
+        + supracategoriaValues.length + categoriaValues.length;
+    const hasActiveFilters = totalSelections > 0 || hasDateFilter;
+
     const indicator = document.getElementById('active-filters-indicator');
     const clearBtn = document.getElementById('clear-filters-btn');
 
     if (hasActiveFilters) {
         indicator.style.display = 'flex';
+        const countText = totalSelections ? ` (${totalSelections})` : '';
+        indicator.innerHTML = `<span class="pulse-dot"></span>Filtros activos${countText}`;
         clearBtn.disabled = false;
     } else {
         indicator.style.display = 'none';
+        indicator.innerHTML = '<span class="pulse-dot"></span>Filtros activos';
         clearBtn.disabled = true;
+    }
+
+    renderActiveFilterChips();
+}
+
+function renderActiveFilterChips() {
+    const container = document.getElementById('active-filter-chips');
+    if (!container) return;
+
+    const chips = [];
+    RELATION_FILTER_CONFIG.forEach(({ key, selectId }) => {
+        const labels = {
+            'filter-campo': 'Campo',
+            'filter-rodeo': 'Rodeo',
+            'filter-supracategoria': 'Supra',
+            'filter-categoria': 'Categoría',
+        };
+        getSelectedValues(selectId).forEach(value => {
+            chips.push({ filterId: selectId, type: labels[selectId] || key, value });
+        });
+    });
+
+    if (chips.length === 0) {
+        container.hidden = true;
+        container.innerHTML = '';
+        return;
+    }
+
+    container.hidden = false;
+    container.innerHTML = chips.map(chip => `
+        <span class="filter-chip" data-filter-id="${chip.filterId}" data-value="${escapeHtml(chip.value)}">
+            <span class="filter-chip__type">${escapeHtml(chip.type)}</span>
+            <span class="filter-chip__name">${escapeHtml(chip.value)}</span>
+            <button type="button" class="filter-chip__remove" aria-label="Quitar ${escapeHtml(chip.type)}: ${escapeHtml(chip.value)}">
+                <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </span>
+    `).join('') + (chips.length >= 2
+        ? `<button type="button" class="filter-chip__clear-all" id="filter-chip-clear-all">Quitar todos</button>`
+        : '');
+
+    container.querySelectorAll('.filter-chip__remove').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const chip = e.currentTarget.closest('.filter-chip');
+            if (!chip) return;
+            const filterId = chip.dataset.filterId;
+            const value = chip.dataset.value;
+            const state = multiFilterState[filterId];
+            if (!state) return;
+            state.values.delete(value);
+            renderMultiFilterTrigger(filterId);
+            handleRelationFilterChange();
+        });
+    });
+
+    const clearAllBtn = container.querySelector('#filter-chip-clear-all');
+    if (clearAllBtn) {
+        clearAllBtn.addEventListener('click', () => clearFilters());
     }
 }
 
@@ -298,16 +371,17 @@ function applyPanelFilter(type, value) {
     const filterId = filterIdMap[type];
     const filterEl = document.getElementById(filterId);
     if (filterEl) {
-        filterEl.value = value;
+        const selected = new Set(getSelectedValues(filterId));
+        selected.add(value);
+        const filterConfig = RELATION_FILTER_CONFIG.find(f => f.selectId === filterId);
+        setSelectedValues(filterId, [...selected]);
+        syncMultiFilterUi(filterId, filterConfig ? filterConfig.allLabel : 'Todos');
         // Trigger data refresh
-        fetchFilteredData();
-        // Visual feedback
+        handleRelationFilterChange();
+        // Visual feedback en el wrapper del filtro
         filterEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        const parent = filterEl.parentElement;
-        if (parent) {
-            parent.style.boxShadow = '0 0 0 4px rgba(65, 105, 255, 0.2)';
-            setTimeout(() => { parent.style.boxShadow = ''; }, 2000);
-        }
+        filterEl.style.boxShadow = '0 0 0 4px rgba(65, 105, 255, 0.2)';
+        setTimeout(() => { filterEl.style.boxShadow = ''; }, 2000);
     }
 }
 
@@ -328,6 +402,260 @@ function setupPanelListeners() {
 }
 
 // ===== FILTER LOGIC (Server-Side with Supabase) =====
+// Estado interno por filtro. Reemplaza al <select multiple> nativo por un dropdown propio
+// con búsqueda + checkboxes. La fuente de verdad es `multiFilterState`.
+const multiFilterState = {};
+let openMultiFilterId = null;
+
+function ensureMultiFilterState(filterId, allLabel) {
+    if (!multiFilterState[filterId]) {
+        multiFilterState[filterId] = {
+            values: new Set(),
+            options: [],
+            allLabel: allLabel || 'Todos',
+            search: '',
+            dirty: false,
+        };
+    } else if (allLabel) {
+        multiFilterState[filterId].allLabel = allLabel;
+    }
+    return multiFilterState[filterId];
+}
+
+function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, ch => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[ch]));
+}
+
+function getSelectedValues(filterId) {
+    const state = multiFilterState[filterId];
+    if (!state) return [];
+    return [...state.values];
+}
+
+function setSelectedValues(filterId, values) {
+    const state = ensureMultiFilterState(filterId);
+    state.values = new Set((values || []).filter(v => state.options.length === 0 || state.options.includes(v)));
+    renderMultiFilterTrigger(filterId);
+    if (openMultiFilterId === filterId) renderMultiFilterPanel(filterId);
+}
+
+function getMultiSelectionLabel(values, allLabel) {
+    if (!values || values.length === 0) return allLabel;
+    if (values.length === 1) return values[0];
+    return `${values.length} seleccionados`;
+}
+
+function renderMultiFilterTrigger(filterId) {
+    const state = multiFilterState[filterId];
+    if (!state) return;
+    const wrapper = document.getElementById(filterId);
+    if (!wrapper) return;
+
+    const labelEl = wrapper.querySelector('.multi-filter-label');
+    const countEl = wrapper.querySelector('.multi-filter-count');
+    const triggerEl = wrapper.querySelector('.multi-filter-trigger');
+    const values = [...state.values];
+
+    if (labelEl) labelEl.textContent = getMultiSelectionLabel(values, state.allLabel);
+    if (countEl) {
+        if (values.length > 1) {
+            countEl.hidden = false;
+            countEl.textContent = values.length;
+        } else {
+            countEl.hidden = true;
+        }
+    }
+    wrapper.classList.toggle('is-active', values.length > 0);
+    if (triggerEl) {
+        const summary = values.length > 0
+            ? `${state.allLabel}: ${values.length} seleccionado${values.length > 1 ? 's' : ''}`
+            : state.allLabel;
+        triggerEl.setAttribute('aria-label', summary);
+    }
+}
+
+function renderMultiFilterPanel(filterId) {
+    const state = multiFilterState[filterId];
+    if (!state) return;
+    const wrapper = document.getElementById(filterId);
+    if (!wrapper) return;
+
+    const list = wrapper.querySelector('.multi-filter-list');
+    const empty = wrapper.querySelector('.multi-filter-empty');
+    if (!list) return;
+
+    const term = (state.search || '').toLowerCase();
+    const filtered = state.options.filter(opt => !term || opt.toLowerCase().includes(term));
+
+    list.innerHTML = filtered.map(opt => {
+        const checked = state.values.has(opt) ? 'checked' : '';
+        const safe = escapeHtml(opt);
+        return `
+            <li class="multi-filter-option" role="option" aria-selected="${state.values.has(opt) ? 'true' : 'false'}">
+                <input type="checkbox" data-value="${safe}" ${checked} aria-label="${safe}">
+                <span class="multi-filter-option-name">${safe}</span>
+            </li>
+        `;
+    }).join('');
+
+    if (empty) {
+        empty.hidden = filtered.length > 0;
+    }
+
+    list.querySelectorAll('input[type="checkbox"]').forEach(input => {
+        input.addEventListener('change', (e) => {
+            const value = e.target.dataset.value;
+            if (e.target.checked) state.values.add(value);
+            else state.values.delete(value);
+            state.dirty = true;
+            renderMultiFilterTrigger(filterId);
+            const li = e.target.closest('.multi-filter-option');
+            if (li) li.setAttribute('aria-selected', e.target.checked ? 'true' : 'false');
+        });
+    });
+
+    // Permite seleccionar tocando cualquier parte de la fila, no solo el checkbox.
+    list.querySelectorAll('.multi-filter-option').forEach(optionEl => {
+        optionEl.addEventListener('click', (e) => {
+            if (e.target.closest('input[type="checkbox"]')) return;
+            const input = optionEl.querySelector('input[type="checkbox"]');
+            if (!input) return;
+            input.checked = !input.checked;
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+    });
+}
+
+function openMultiFilter(filterId) {
+    if (openMultiFilterId && openMultiFilterId !== filterId) {
+        closeMultiFilter(openMultiFilterId);
+    }
+    const wrapper = document.getElementById(filterId);
+    const state = multiFilterState[filterId];
+    if (!wrapper || !state) return;
+
+    openMultiFilterId = filterId;
+    state.dirty = false;
+    state.search = '';
+    const searchEl = wrapper.querySelector('.multi-filter-search');
+    if (searchEl) searchEl.value = '';
+
+    wrapper.classList.add('open');
+    const panel = wrapper.querySelector('.multi-filter-panel');
+    if (panel) panel.hidden = false;
+    const trigger = wrapper.querySelector('.multi-filter-trigger');
+    if (trigger) trigger.setAttribute('aria-expanded', 'true');
+    renderMultiFilterPanel(filterId);
+
+    // Focus search input for keyboard usability
+    setTimeout(() => { if (searchEl) searchEl.focus(); }, 30);
+}
+
+function closeMultiFilter(filterId) {
+    const wrapper = document.getElementById(filterId);
+    const state = multiFilterState[filterId];
+    if (!wrapper || !state) return;
+
+    wrapper.classList.remove('open');
+    const panel = wrapper.querySelector('.multi-filter-panel');
+    if (panel) panel.hidden = true;
+    const trigger = wrapper.querySelector('.multi-filter-trigger');
+    if (trigger) trigger.setAttribute('aria-expanded', 'false');
+
+    if (openMultiFilterId === filterId) openMultiFilterId = null;
+
+    if (state.dirty) {
+        state.dirty = false;
+        handleRelationFilterChange();
+    }
+}
+
+function setupMultiFilters() {
+    RELATION_FILTER_CONFIG.forEach(({ selectId, allLabel }) => {
+        const wrapper = document.getElementById(selectId);
+        if (!wrapper) return;
+        ensureMultiFilterState(selectId, allLabel);
+
+        // Estado inicial: panel cerrado siempre, sin importar el cache del browser.
+        wrapper.classList.remove('open');
+        const initialPanel = wrapper.querySelector('.multi-filter-panel');
+        if (initialPanel) initialPanel.hidden = true;
+        const initialTrigger = wrapper.querySelector('.multi-filter-trigger');
+        if (initialTrigger) initialTrigger.setAttribute('aria-expanded', 'false');
+
+        const trigger = wrapper.querySelector('.multi-filter-trigger');
+        if (trigger) {
+            trigger.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (wrapper.classList.contains('open')) {
+                    closeMultiFilter(selectId);
+                } else {
+                    openMultiFilter(selectId);
+                }
+            });
+        }
+
+        const search = wrapper.querySelector('.multi-filter-search');
+        if (search) {
+            search.addEventListener('click', (e) => e.stopPropagation());
+            search.addEventListener('input', (e) => {
+                const state = multiFilterState[selectId];
+                if (!state) return;
+                state.search = e.target.value || '';
+                renderMultiFilterPanel(selectId);
+            });
+        }
+
+        wrapper.querySelectorAll('.multi-filter-action').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const action = btn.dataset.action;
+                const state = multiFilterState[selectId];
+                if (!state) return;
+                if (action === 'all') {
+                    const term = (state.search || '').toLowerCase();
+                    state.options.forEach(opt => {
+                        if (!term || opt.toLowerCase().includes(term)) state.values.add(opt);
+                    });
+                } else if (action === 'clear') {
+                    state.values.clear();
+                }
+                state.dirty = true;
+                renderMultiFilterTrigger(selectId);
+                renderMultiFilterPanel(selectId);
+            });
+        });
+
+        const panel = wrapper.querySelector('.multi-filter-panel');
+        if (panel) panel.addEventListener('click', (e) => e.stopPropagation());
+    });
+
+    // Click outside cierra el dropdown abierto y dispara la actualización
+    document.addEventListener('click', () => {
+        if (openMultiFilterId) closeMultiFilter(openMultiFilterId);
+    });
+
+    // Escape cierra sin descartar selección (igual aplica los cambios)
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && openMultiFilterId) {
+            closeMultiFilter(openMultiFilterId);
+        }
+    });
+}
+
+function syncMultiFilterUi(filterId, allLabel = 'Todos') {
+    ensureMultiFilterState(filterId, allLabel);
+    renderMultiFilterTrigger(filterId);
+    if (openMultiFilterId === filterId) renderMultiFilterPanel(filterId);
+}
+
+function syncAllMultiFilterUi() {
+    RELATION_FILTER_CONFIG.forEach(({ selectId, allLabel }) => {
+        syncMultiFilterUi(selectId, allLabel);
+    });
+}
 
 async function initializeFilters() {
     try {
@@ -385,8 +713,8 @@ function getAvailableFilterValues(targetField, filters) {
     snapshotPositiveData.forEach(item => {
         for (const key of Object.keys(filters)) {
             if (key === targetField) continue;
-            const value = filters[key];
-            if (value && item[key] !== value) return;
+            const values = filters[key];
+            if (values.length > 0 && !values.includes(item[key])) return;
         }
         const v = item[targetField];
         if (v) set.add(v);
@@ -395,40 +723,29 @@ function getAvailableFilterValues(targetField, filters) {
 }
 
 function repopulateFilterSelect(selectId, allLabel, options) {
-    const select = document.getElementById(selectId);
-    if (!select) return;
-    const previous = select.value;
-
-    select.innerHTML = `<option value="">${allLabel}</option>`;
-    options.forEach(value => {
-        const option = document.createElement('option');
-        option.value = value;
-        option.textContent = value;
-        select.appendChild(option);
-    });
-
-    if (previous && options.includes(previous)) {
-        select.value = previous;
-    } else {
-        select.value = '';
-    }
+    const state = ensureMultiFilterState(selectId, allLabel);
+    state.options = [...options];
+    const kept = [...state.values].filter(value => options.includes(value));
+    state.values = new Set(kept);
+    renderMultiFilterTrigger(selectId);
+    if (openMultiFilterId === selectId) renderMultiFilterPanel(selectId);
 }
 
 function getCurrentFilterRelations() {
     return {
-        Campo: document.getElementById('filter-campo').value,
-        Rodeo: document.getElementById('filter-rodeo').value,
-        Supracategoria: document.getElementById('filter-supracategoria').value,
-        Categoria: document.getElementById('filter-categoria').value,
+        Campo: getSelectedValues('filter-campo'),
+        Rodeo: getSelectedValues('filter-rodeo'),
+        Supracategoria: getSelectedValues('filter-supracategoria'),
+        Categoria: getSelectedValues('filter-categoria'),
     };
 }
 
 function refreshAllFilterDropdowns() {
-    const filters = getCurrentFilterRelations();
-    repopulateFilterSelect('filter-campo', 'Todos los campos', getAvailableFilterValues('Campo', filters));
-    repopulateFilterSelect('filter-rodeo', 'Todos los rodeos', getAvailableFilterValues('Rodeo', filters));
-    repopulateFilterSelect('filter-supracategoria', 'Todas las supracategorías', getAvailableFilterValues('Supracategoria', filters));
-    repopulateFilterSelect('filter-categoria', 'Todas las categorías', getAvailableFilterValues('Categoria', filters));
+    RELATION_FILTER_CONFIG.forEach(({ key, selectId, allLabel }) => {
+        const filters = getCurrentFilterRelations();
+        repopulateFilterSelect(selectId, allLabel, getAvailableFilterValues(key, filters));
+    });
+    syncAllMultiFilterUi();
 }
 
 function handleRelationFilterChange() {
@@ -438,10 +755,10 @@ function handleRelationFilterChange() {
 
 function getCurrentFilterValues() {
     return {
-        campoValue: document.getElementById('filter-campo').value,
-        rodeoValue: document.getElementById('filter-rodeo').value,
-        supracategoriaValue: document.getElementById('filter-supracategoria').value,
-        categoriaValue: document.getElementById('filter-categoria').value,
+        campoValues: getSelectedValues('filter-campo'),
+        rodeoValues: getSelectedValues('filter-rodeo'),
+        supracategoriaValues: getSelectedValues('filter-supracategoria'),
+        categoriaValues: getSelectedValues('filter-categoria'),
         datePresetValue: document.getElementById('filter-date').value,
         singleDateValue: document.getElementById('filter-date-single').value,
         dateFromValue: document.getElementById('filter-date-from').value,
@@ -450,16 +767,16 @@ function getCurrentFilterValues() {
 }
 
 function hasEntityFilterSelection(filters) {
-    return !!(filters.campoValue || filters.rodeoValue
-        || filters.supracategoriaValue || filters.categoriaValue);
+    return (filters.campoValues.length + filters.rodeoValues.length
+        + filters.supracategoriaValues.length + filters.categoriaValues.length) > 0;
 }
 
 function applyBasicFiltersToQuery(query, filters) {
     let nextQuery = query;
-    if (filters.campoValue) nextQuery = nextQuery.eq('Campo', filters.campoValue);
-    if (filters.rodeoValue) nextQuery = nextQuery.eq('Rodeo', filters.rodeoValue);
-    if (filters.supracategoriaValue) nextQuery = nextQuery.eq('Supracategoria', filters.supracategoriaValue);
-    if (filters.categoriaValue) nextQuery = nextQuery.eq('Categoria', filters.categoriaValue);
+    if (filters.campoValues.length > 0) nextQuery = nextQuery.in('Campo', filters.campoValues);
+    if (filters.rodeoValues.length > 0) nextQuery = nextQuery.in('Rodeo', filters.rodeoValues);
+    if (filters.supracategoriaValues.length > 0) nextQuery = nextQuery.in('Supracategoria', filters.supracategoriaValues);
+    if (filters.categoriaValues.length > 0) nextQuery = nextQuery.in('Categoria', filters.categoriaValues);
     return nextQuery;
 }
 
@@ -560,10 +877,10 @@ async function fetchFilteredData() {
         if (hasEntityFilterSelection(filters)) {
             const baseOnlyFilters = {
                 ...filters,
-                campoValue: '',
-                rodeoValue: '',
-                supracategoriaValue: '',
-                categoriaValue: '',
+                campoValues: [],
+                rodeoValues: [],
+                supracategoriaValues: [],
+                categoriaValues: [],
             };
             let qBase = supabaseClient.from('Historial_Stock').select('*');
             qBase = applyBasicFiltersToQuery(qBase, baseOnlyFilters);
@@ -624,10 +941,10 @@ function clearFilters() {
     document.getElementById('filter-date-single').value = '';
     document.getElementById('filter-date-from').value = '';
     document.getElementById('filter-date-to').value = '';
-    document.getElementById('filter-campo').value = '';
-    document.getElementById('filter-rodeo').value = '';
-    document.getElementById('filter-supracategoria').value = '';
-    document.getElementById('filter-categoria').value = '';
+    RELATION_FILTER_CONFIG.forEach(({ selectId, allLabel }) => {
+        setSelectedValues(selectId, []);
+        syncMultiFilterUi(selectId, allLabel);
+    });
     refreshAllFilterDropdowns();
 
     fetchFilteredData();
@@ -769,18 +1086,15 @@ function setupCardClicks() {
         const el = document.getElementById(card.id);
         if (el) {
             el.addEventListener('click', (e) => {
-                // If the user clicked inside kpi-view-all, it's already handled
                 if (e.target.closest('.kpi-view-all')) return;
 
                 const filterEl = document.getElementById(card.filter);
                 if (filterEl) {
-                    filterEl.focus();
+                    const trigger = filterEl.querySelector('.multi-filter-trigger');
+                    if (trigger) trigger.focus();
                     filterEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    const parent = filterEl.parentElement;
-                    if (parent) {
-                        parent.style.boxShadow = '0 0 0 4px rgba(30, 64, 175, 0.18)';
-                        setTimeout(() => { if (parent) parent.style.boxShadow = ''; }, 2000);
-                    }
+                    filterEl.style.boxShadow = '0 0 0 4px rgba(30, 64, 175, 0.18)';
+                    setTimeout(() => { filterEl.style.boxShadow = ''; }, 2000);
                 }
             });
         }
@@ -797,6 +1111,33 @@ function buildDailyStockTotalsByFecha(data) {
         acc[fecha] = (acc[fecha] || 0) + (Number(item.Cantidad) || 0);
         return acc;
     }, {});
+}
+
+function buildDailyStockByFechaAndCampo(data, allowedCampos = []) {
+    const allowedSet = new Set((allowedCampos || []).filter(Boolean));
+    const fields = {};
+    const isExcluded = (cat) => CATS_EXCLUDED_FROM_SUPRA_TOTAL.some(c => c.toLowerCase() === (cat || '').toLowerCase());
+
+    (data || []).forEach(item => {
+        if (isExcluded(item.Categoria)) return;
+        const fecha = item.Fecha;
+        const campo = item.Campo;
+        if (!fecha || !campo) return;
+        if (allowedSet.size > 0 && !allowedSet.has(campo)) return;
+        if (!fields[campo]) fields[campo] = {};
+        fields[campo][fecha] = (fields[campo][fecha] || 0) + (Number(item.Cantidad) || 0);
+    });
+
+    return fields;
+}
+
+function getChartColorByIndex(index) {
+    const palette = [
+        '#1E40AF', '#059669', '#D97706', '#7C3AED',
+        '#0EA5E9', '#EF4444', '#0891B2', '#9333EA',
+        '#65A30D', '#F59E0B', '#2563EB', '#DB2777'
+    ];
+    return palette[index % palette.length];
 }
 
 function formatNumberAR(n) {
@@ -958,6 +1299,7 @@ function initChart() {
                             return `${name}: ${formatNumberAR(context.parsed.y)} animales`;
                         },
                         footer: function (items) {
+                            if (!chartInstance || chartInstance._tooltipMode !== 'dual') return '';
                             if (!items || items.length < 2) return '';
                             const byLabel = {};
                             items.forEach(it => { byLabel[it.datasetIndex] = it.parsed.y; });
@@ -1024,12 +1366,10 @@ function updateChart(data, comparisonData = null) {
     if (!chartInstance) return;
 
     if (!data || data.length === 0) {
+        chartInstance._tooltipMode = 'single';
         chartInstance._isoDates = [];
         chartInstance.data.labels = [];
-        chartInstance.data.datasets[0].data = [];
-        chartInstance.data.datasets[1].data = [];
-        chartInstance.setDatasetVisibility(0, true);
-        chartInstance.setDatasetVisibility(1, false);
+        chartInstance.data.datasets = [];
         chartInstance.options.plugins.legend.display = false;
         chartInstance.update();
         renderChartSummary(null, null);
@@ -1038,6 +1378,7 @@ function updateChart(data, comparisonData = null) {
 
     const tFiltered = buildDailyStockTotalsByFecha(data);
     const filters = getCurrentFilterValues();
+    const hasMultiCampo = filters.campoValues.length > 1;
     const dual = !!(comparisonData && comparisonData.length && hasEntityFilterSelection(filters));
     const tBase = dual ? buildDailyStockTotalsByFecha(comparisonData) : tFiltered;
 
@@ -1046,7 +1387,68 @@ function updateChart(data, comparisonData = null) {
         return p.length === 3 ? `${p[2]}/${p[1]}` : iso;
     };
 
-    if (dual) {
+    if (hasMultiCampo) {
+        chartInstance._tooltipMode = 'multi';
+        const campoSeries = buildDailyStockByFechaAndCampo(data, filters.campoValues);
+        const allFechas = [...new Set(Object.values(campoSeries).flatMap(series => Object.keys(series)))].sort();
+
+        chartInstance._isoDates = allFechas;
+        chartInstance.data.labels = allFechas.map(fmtShort);
+        chartInstance.data.datasets = Object.keys(campoSeries).sort().map((campo, idx) => {
+            const color = getChartColorByIndex(idx);
+            return {
+                label: campo,
+                data: allFechas.map(fecha => (fecha in campoSeries[campo] ? campoSeries[campo][fecha] : null)),
+                borderColor: color,
+                backgroundColor: `${color}1A`,
+                borderWidth: 2.5,
+                fill: false,
+                tension: 0.35,
+                pointRadius: 2.5,
+                pointHoverRadius: 6,
+                pointBackgroundColor: color,
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+            };
+        });
+
+        chartInstance.options.plugins.legend.display = true;
+        chartInstance.update();
+        renderChartSummary(null, null);
+        return;
+    } else if (dual) {
+        chartInstance._tooltipMode = 'dual';
+        chartInstance.data.datasets = [
+            {
+                label: 'Total (mismo periodo)',
+                data: [],
+                borderColor: '#94A3B8',
+                backgroundColor: 'rgba(148, 163, 184, 0.10)',
+                borderWidth: 2,
+                borderDash: [6, 6],
+                fill: true,
+                tension: 0.35,
+                pointRadius: 2.5,
+                pointHoverRadius: 6,
+                pointBackgroundColor: '#94A3B8',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+            },
+            {
+                label: 'Con filtros (selección)',
+                data: [],
+                borderColor: '#1E40AF',
+                backgroundColor: 'rgba(30, 64, 175, 0.08)',
+                borderWidth: 3,
+                fill: false,
+                tension: 0.35,
+                pointRadius: 3,
+                pointHoverRadius: 7,
+                pointBackgroundColor: '#1E40AF',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+            }
+        ];
         const allFechas = [...new Set([...Object.keys(tBase), ...Object.keys(tFiltered)])].sort();
         const sBase = allFechas.map(f => (f in tBase ? tBase[f] : null));
         const sFil = allFechas.map(f => (f in tFiltered ? tFiltered[f] : null));
@@ -1079,6 +1481,27 @@ function updateChart(data, comparisonData = null) {
         chartInstance.options.plugins.legend.display = false;
         renderChartSummary(sBase, sFil, allFechas);
     } else {
+        chartInstance._tooltipMode = 'single';
+        chartInstance.data.datasets = [
+            {
+                label: 'Evolución de stock',
+                data: [],
+                borderColor: '#1E40AF',
+                backgroundColor: 'rgba(30, 64, 175, 0.08)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.35,
+                pointRadius: 3,
+                pointHoverRadius: 7,
+                pointBackgroundColor: '#1E40AF',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+            },
+            {
+                label: '',
+                data: []
+            }
+        ];
         const sortedDates = Object.keys(tFiltered).sort();
         const quantities = sortedDates.map(date => tFiltered[date]);
 
@@ -1442,14 +1865,14 @@ function updateMatrixTable(data) {
     }
 
     // 0. Resolve Active Filters for Columns
-    const filterSupra = document.getElementById('filter-supracategoria').value;
-    const filterCat = document.getElementById('filter-categoria').value;
+    const filterSupraValues = getSelectedValues('filter-supracategoria');
+    const filterCatValues = getSelectedValues('filter-categoria');
 
     // 1. Identify initial columns (respecting filters, before empty-column hiding)
     let initialStructure = {};
     Object.keys(MATRIX_STRUCTURE).forEach(supra => {
-        if (!filterSupra || filterSupra === supra) {
-            const cats = MATRIX_STRUCTURE[supra].filter(c => !filterCat || filterCat === c);
+        if (filterSupraValues.length === 0 || filterSupraValues.includes(supra)) {
+            const cats = MATRIX_STRUCTURE[supra].filter(c => filterCatValues.length === 0 || filterCatValues.includes(c));
             if (cats.length > 0) {
                 initialStructure[supra] = cats;
             }
@@ -1674,15 +2097,15 @@ function exportMatrixToPDF() {
     }
 
     // Active filters summary
-    const filterCampo = document.getElementById('filter-campo').value;
-    const filterRodeo = document.getElementById('filter-rodeo').value;
-    const filterSupra = document.getElementById('filter-supracategoria').value;
-    const filterCateg = document.getElementById('filter-categoria').value;
+    const filterCampo = getSelectedValues('filter-campo');
+    const filterRodeo = getSelectedValues('filter-rodeo');
+    const filterSupra = getSelectedValues('filter-supracategoria');
+    const filterCateg = getSelectedValues('filter-categoria');
     const filtrosActivos = [];
-    if (filterCampo) filtrosActivos.push('Campo: ' + filterCampo);
-    if (filterRodeo) filtrosActivos.push('Rodeo: ' + filterRodeo);
-    if (filterSupra) filtrosActivos.push('Supra: ' + filterSupra);
-    if (filterCateg) filtrosActivos.push('Cat: ' + filterCateg);
+    if (filterCampo.length) filtrosActivos.push('Campo: ' + filterCampo.join(' | '));
+    if (filterRodeo.length) filtrosActivos.push('Rodeo: ' + filterRodeo.join(' | '));
+    if (filterSupra.length) filtrosActivos.push('Supra: ' + filterSupra.join(' | '));
+    if (filterCateg.length) filtrosActivos.push('Cat: ' + filterCateg.join(' | '));
 
     // Button loading state
     const pdfBtn = document.getElementById('btn-export-matrix-pdf');
@@ -2017,8 +2440,12 @@ async function initializeDashboard() {
         initChart();
     }
 
+    // Wire multi-filter dropdowns BEFORE loading options so triggers/state exist
+    setupMultiFilters();
+
     // Populate filters from Supabase
     await initializeFilters();
+    syncAllMultiFilterUi();
 
     // Load initial data from Supabase
     await fetchFilteredData();
@@ -2034,11 +2461,7 @@ async function initializeDashboard() {
     document.querySelectorAll('.date-pill').forEach(btn => {
         btn.addEventListener('click', () => switchDateMode(btn.dataset.mode));
     });
-    // Other filters (cascada dependiente)
-    document.getElementById('filter-campo').addEventListener('change', handleRelationFilterChange);
-    document.getElementById('filter-rodeo').addEventListener('change', handleRelationFilterChange);
-    document.getElementById('filter-supracategoria').addEventListener('change', handleRelationFilterChange);
-    document.getElementById('filter-categoria').addEventListener('change', handleRelationFilterChange);
+    // Los filtros multi-select (Campo/Rodeo/Supra/Categoría) ya quedaron cableados en setupMultiFilters().
     document.getElementById('clear-filters-btn').addEventListener('click', clearFilters);
 
     // Setup KPI card clicks
