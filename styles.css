@@ -1034,6 +1034,12 @@ body {
     overflow: hidden;
 }
 
+/* La matriz usa thead sticky: overflow:hidden en la tarjeta hace que el sticky se
+   ancle al scroll de la ventana y quede tapado por el topbar (z-index mayor). */
+#view-matrix:not(.fullscreen-mode) .table-container-card {
+    overflow: visible;
+}
+
 .table-responsive {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
@@ -1104,8 +1110,20 @@ body {
 
 .matrix-responsive {
     overflow-x: auto;
+    overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     max-height: 600px;
+    border-radius: var(--radius-lg);
+}
+
+/* Cuando NO está en fullscreen, mantenemos el contenedor pegado debajo del topbar
+   (z-index 50, alto ~60px). Así, al hacer scroll de la página, la cabecera de la
+   matriz nunca queda tapada por el topbar. */
+#view-matrix:not(.fullscreen-mode) .matrix-responsive {
+    position: sticky;
+    top: 64px;
+    max-height: min(600px, calc(100vh - 80px));
+    z-index: 5;
 }
 
 .matrix-table {
@@ -1162,7 +1180,7 @@ body {
 /* Línea vertical negra entre supracategorías (misma lógica que el PDF) */
 .matrix-table th.col-supra-boundary,
 .matrix-table td.col-supra-boundary {
-    border-left: 3px solid #0a0a0a !important;
+    border-left: 3px solid #000000 !important;
 }
 
 /* Sticky Columns for Campo & Rodeo */
@@ -1280,6 +1298,27 @@ body {
 .matrix-table tr.row-total-general td.col-sticky {
     background-color: #f29a59 !important;
     color: #0f172a !important;
+}
+
+/* Refuerzo visual de la tabla en pantalla: igual contraste que el PDF */
+.matrix-table .header-supra th,
+.matrix-table .header-cat th,
+.matrix-table th.col-totales {
+    color: #0f172a !important;
+}
+
+.matrix-table tr.row-total-general td,
+.matrix-table tr.row-total-general th,
+.matrix-table tr.row-total-campo td,
+.matrix-table tr.row-total-campo th {
+    color: #0f172a !important;
+    font-weight: 700 !important;
+}
+
+.matrix-table th.col-supra-boundary,
+.matrix-table td.col-supra-boundary {
+    border-left-color: #000000 !important;
+    border-left-width: 3px !important;
 }
 
 .matrix-table tr.row-total-campo td.col-sticky,
@@ -1964,4 +2003,25 @@ body.fullscreen-active {
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
     }
+}
+
+/* ===== MATRIX VISUAL OVERRIDES =====
+   Solo afecta la tabla en pantalla. La exportación PDF usa app.js. */
+.matrix-table thead tr.header-supra th,
+.matrix-table thead tr.header-cat th,
+.matrix-table thead th.col-totales {
+    color: #0f172a !important;
+}
+
+.matrix-table tbody tr.row-total-general th,
+.matrix-table tbody tr.row-total-general td,
+.matrix-table tbody tr.row-total-campo th,
+.matrix-table tbody tr.row-total-campo td {
+    color: #0f172a !important;
+    font-weight: 700 !important;
+}
+
+.matrix-table thead th.col-supra-boundary,
+.matrix-table tbody td.col-supra-boundary {
+    border-left: 3px solid #000000 !important;
 }

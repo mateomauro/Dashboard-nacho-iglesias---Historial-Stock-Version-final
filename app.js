@@ -1849,14 +1849,25 @@ function exportMatrixToPDF() {
             });
         });
 
-        // 7. Altura uniforme del body: distribuir el sobrante SOLO entre filas del body
-        // para que la tabla llene la hoja A4 sin que el header crezca y empuje todo a la
-        // segunda página.
+        // 7. Altura uniforme del body. Distribuimos parte del sobrante para que la tabla
+        // llene la hoja con muchas filas, pero limitamos fuertemente el crecimiento para
+        // que con pocas filas (filtros) NO se desborde a una segunda página.
         const bodyRowH = 2 * PAD_V + (fontSize + 1) * LINE_F;
         const headerRowH = 2 * PAD_V + fontSize * LINE_F;
         const bodyRowsCount = Math.max(body.length, 1);
+
+        // Reserva generosa para la cabecera (rowspan, saltos de línea en títulos de supra,
+        // bordes). Si el header rendizado fuera más alto que el estimado, este colchón evita
+        // que las filas inflen y desplacen la última a la página 2.
+        const HEADER_RESERVE = 4 * headerRowH + 10;
+        // Cap absoluto: una fila del body no puede crecer más que ~3x la altura natural;
+        // así, con pocas filas, sobra espacio en blanco al final pero todo cabe en una hoja.
+        const MAX_BODY_GROWTH = 3;
+
         const slack = Math.max(0, usableHeight - 2 * headerRowH - bodyRowsCount * bodyRowH);
-        const bodyMinH = bodyRowH + slack / bodyRowsCount;
+        const bodyMinHByPage = Math.max(bodyRowH, (usableHeight - HEADER_RESERVE) / bodyRowsCount);
+        const bodyMinHByCap = bodyRowH * MAX_BODY_GROWTH;
+        const bodyMinH = Math.min(bodyRowH + slack / bodyRowsCount, bodyMinHByPage, bodyMinHByCap);
 
         // Índices de columna (0=Campo, 1=Rodeo, 2=TOT.) donde empieza cada supracategoría — borde izquierdo más grueso en el PDF
         const supraLeftBorderCols = [];
@@ -1873,12 +1884,14 @@ function exportMatrixToPDF() {
             styles: {
                 fontSize: fontSize,
                 cellPadding: { top: PAD_V, right: PAD_H, bottom: PAD_V, left: PAD_H },
-                minCellHeight: bodyMinH,
                 valign: 'middle',
                 textColor: C_DARK,
                 lineColor: [203, 213, 225],
                 lineWidth: 0.2,
                 overflow: 'linebreak'
+            },
+            bodyStyles: {
+                minCellHeight: bodyMinH
             },
             headStyles: {
                 fontSize: fontSize,
@@ -1904,17 +1917,20 @@ function exportMatrixToPDF() {
                 if (hookData.section === 'head' && hookData.row.index === 1) {
                     hookData.cell.styles.textColor = [0, 0, 0];
                 }
+                if (hookData.section === 'head') {
+                    hookData.cell.styles.minCellHeight = headerRowH;
+                }
             },
             didDrawCell: function (hookData) {
                 const sec = hookData.section;
                 if ((sec === 'head' || sec === 'body') && supraLeftBorderCols.includes(hookData.column.index)) {
                     const doc = hookData.doc;
                     const cell = hookData.cell;
-                    doc.saveGraphicsState();
                     doc.setDrawColor(0, 0, 0);
                     doc.setLineWidth(0.55);
                     doc.line(cell.x, cell.y, cell.x, cell.y + cell.height);
-                    doc.restoreGraphicsState();
+                    doc.setDrawColor(203, 213, 225);
+                    doc.setLineWidth(0.2);
                 }
             }
         });
