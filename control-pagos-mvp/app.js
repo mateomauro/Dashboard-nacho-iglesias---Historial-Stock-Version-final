@@ -27,7 +27,7 @@ document.getElementById('btn-google-login').addEventListener('click', async () =
     const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-            redirectTo: window.location.origin
+            redirectTo: window.location.origin + '/app.html'
         }
     });
     if (error) showToast('Error al iniciar sesión con Google: ' + error.message, 'error');

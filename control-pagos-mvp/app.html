@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CobroGest - MVP Control de Pagos</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <!-- Iconos Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <!-- Supabase CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <!-- Toast Notifications Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Login Screen -->
+    <div id="login-screen" class="login-overlay active">
+        <div class="login-box glass-panel">
+            <div class="logo-area" style="justify-content: center; margin-bottom: 24px;">
+                <i class="ph ph-wallet"></i>
+                <h2>CobroGest</h2>
+            </div>
+            <p style="margin-bottom: 24px; color: var(--text-secondary);">Iniciá sesión para gestionar tus cobros</p>
+            
+            <!-- Email + Password -->
+            <form id="auth-form" class="modal-form">
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="auth-email" required placeholder="tu@email.com">
+                </div>
+                <div class="form-group" style="margin-bottom: 16px;">
+                    <label>Contraseña</label>
+                    <input type="password" id="auth-password" required placeholder="••••••">
+                </div>
+                <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; margin-bottom: 8px;" id="btn-login">Ingresar</button>
+                <button type="button" class="btn-secondary" style="width: 100%; margin-bottom: 20px;" id="btn-register">Crear Cuenta</button>
+            </form>
+
+            <!-- Divider -->
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
+                <div style="flex: 1; height: 1px; background: var(--border-color);"></div>
+                <span style="color: var(--text-secondary); font-size: 12px;">o</span>
+                <div style="flex: 1; height: 1px; background: var(--border-color);"></div>
+            </div>
+
+            <div style="margin-top: 32px;">
+                            <button type="button" class="btn-google" id="btn-google-login" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 12px; padding: 12px; background: white; color: #333; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;">
+                    <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" style="width: 24px; height: 24px;">
+                    Continuar con Google
+                </button>
+
+            <!-- Mensaje de acceso pendiente (oculto por defecto) -->
+            <div id="pending-approval" style="display: none; margin-top: 20px; background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.4); border-radius: 10px; padding: 14px; text-align: center;">
+                <p style="color: #fcd34d; font-weight: 600; margin-bottom: 4px;">Acceso pendiente ⏳</p>
+                <p style="color: var(--text-secondary); font-size: 13px;">Tu cuenta fue registrada pero aún no fue aprobada. Contactate con el administrador para obtener acceso.</p>
+            </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-container" id="main-app" style="display: none;">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="logo-area">
+                <i class="ph ph-wallet"></i>
+                <h2>CobroGest</h2>
+            </div>
+            <nav class="main-nav">
+                <a href="#" class="nav-item active" id="nav-dashboard" data-target="view-dashboard">
+                    <i class="ph ph-squares-four"></i> Dashboard
+                </a>
+                <a href="#" class="nav-item" id="nav-clientes" data-target="view-clientes">
+                    <i class="ph ph-users"></i> Clientes
+                </a>
+                <a href="#" class="nav-item" id="nav-recibos" data-target="view-recibos">
+                    <i class="ph ph-receipt"></i> Recibos
+                </a>
+                <a href="#" class="nav-item" id="nav-config" data-target="view-configuracion">
+                    <i class="ph ph-gear"></i> Configuración
+                </a>
+                <a href="#" class="nav-item text-danger" id="btn-logout" style="margin-top: auto;">
+                    <i class="ph ph-sign-out"></i> Cerrar Sesión
+                </a>
+            </nav>
+            <div class="user-profile">
+                <img src="https://ui-avatars.com/api/?name=Admin+Gym&background=random" alt="User" class="avatar">
+                <div class="user-info">
+                    <span class="user-name">Admin Gym</span>
+                    <span class="user-role">Administrador</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="top-header">
+                <div class="header-titles">
+                    <h1 id="page-title">Dashboard</h1>
+                    <p>Mes actual: <span id="current-month">Mayo 2026</span></p>
+                </div>
+                <button class="btn-primary" id="add-client-btn">
+                    <i class="ph ph-plus"></i> Nuevo Cliente
+                </button>
+            </header>
+
+            <!-- VISTA: DASHBOARD -->
+            <div id="view-dashboard" class="app-view">
+                <!-- KPI Cards -->
+                <section class="kpi-grid">
+                
+                <div class="kpi-card glass-panel" style="border-bottom: 2px solid #818cf8;">
+                    <div class="kpi-header">
+                        <div class="kpi-icon" style="background: rgba(99, 102, 241, 0.2); color: #818cf8;">
+                            <i class="ph ph-sigma"></i>
+                        </div>
+                        <h3>Total a Cobrar</h3>
+                    </div>
+                    <div class="kpi-value" id="kpi-total">$0</div>
+                    <p style="color: var(--text-secondary); font-size: 12px; margin-top: 8px;">Si te pagan todos este mes</p>
+                </div>
+
+                <div class="kpi-card glass-panel" style="cursor: pointer;" onclick="goToFilteredClients('paid')">
+                    <div class="kpi-header">
+                        <div class="kpi-icon collected">
+                            <i class="ph ph-trend-up"></i>
+                        </div>
+                        <h3>Cobrado (Mes)</h3>
+                    </div>
+                    <div class="kpi-value" id="kpi-collected">$0</div>
+                    <div class="kpi-progress">
+                        <div class="progress-bar collected-bar" style="width: 65%;"></div>
+                    </div>
+                </div>
+
+                <div class="kpi-card glass-panel" style="cursor: pointer;" onclick="goToFilteredClients('pending')">
+                    <div class="kpi-header">
+                        <div class="kpi-icon pending">
+                            <i class="ph ph-clock"></i>
+                        </div>
+                        <h3>Pendiente</h3>
+                    </div>
+                    <div class="kpi-value" id="kpi-pending">$0</div>
+                    <div class="kpi-progress">
+                        <div class="progress-bar pending-bar" style="width: 25%;"></div>
+                    </div>
+                </div>
+
+                <div class="kpi-card glass-panel" style="cursor: pointer;" onclick="goToFilteredClients('overdue')">
+                    <div class="kpi-header">
+                        <div class="kpi-icon overdue">
+                            <i class="ph ph-warning-circle"></i>
+                        </div>
+                        <h3>Vencido</h3>
+                    </div>
+                    <div class="kpi-value" id="kpi-overdue">$0</div>
+                    <div class="kpi-progress">
+                        <div class="progress-bar overdue-bar" style="width: 10%;"></div>
+                    </div>
+                </div>
+            </section>
+            </div>
+
+            <!-- VISTA: CLIENTES -->
+            <div id="view-clientes" class="app-view" style="display: none;">
+                <!-- Client List -->
+                <section class="clients-section glass-panel">
+                <div class="section-header">
+                    <h2>Estado de Alumnos / Clientes</h2>
+                    <div class="search-filter">
+                        <div class="search-box">
+                            <i class="ph ph-magnifying-glass"></i>
+                            <input type="text" id="search-input" placeholder="Buscar alumno...">
+                        </div>
+                        <select id="status-filter" class="filter-select">
+                            <option value="all">Todos los estados</option>
+                            <option value="paid">Al día</option>
+                            <option value="pending">Pendiente</option>
+                            <option value="overdue">Vencido</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="clients-table">
+                        <thead>
+                            <tr>
+                                <th>Cliente</th>
+                                <th>Plan / Actividad</th>
+                                <th>Vencimiento</th>
+                                <th>Monto</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="clients-tbody">
+                            <!-- Rows will be populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+            </div>
+            
+            <!-- VISTA: RECIBOS -->
+            <div id="view-recibos" class="app-view" style="display: none;">
+                <section class="clients-section glass-panel">
+                    <div class="section-header">
+                        <h2>Historial de Recibos</h2>
+                        <div class="search-filter">
+                            <input type="text" id="search-receipts" placeholder="Buscar cliente..." class="form-control" style="padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(15, 23, 42, 0.5); color: white;">
+                        </div>
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table class="clients-table">
+                            <thead>
+                                <tr>
+                                    <th>Fecha y Hora</th>
+                                    <th>Cliente</th>
+                                    <th>Servicio</th>
+                                    <th>Método</th>
+                                    <th>Monto Cobrado</th>
+                                </tr>
+                            </thead>
+                            <tbody id="receipts-tbody">
+                                <!-- JS render -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+
+            <!-- VISTA: CONFIGURACIÓN -->
+            <div id="view-configuracion" class="app-view" style="display: none;">
+                <section class="glass-panel" style="padding: 40px;">
+                    <h2>Configuración de Servicios</h2>
+                    <p style="color: var(--text-secondary); margin-bottom: 24px;">Creá los planes o servicios que ofrecés para seleccionarlos rápido al cargar un cliente.</p>
+                    
+                    <div style="display: flex; gap: 12px; margin-bottom: 24px; max-width: 500px;">
+                        <input type="text" id="new-service-input" placeholder="Ej: Pase Libre Deportivo" style="flex: 1; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(15, 23, 42, 0.5); color: white; outline: none;">
+                        <button class="btn-primary" id="btn-add-service">Agregar</button>
+                    </div>
+
+                    <ul id="services-list" style="list-style: none; padding: 0; max-width: 500px; display: flex; flex-direction: column; gap: 8px;">
+                        <!-- JS render -->
+                    </ul>
+                    
+                    <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 40px 0; max-width: 500px;">
+                    
+                    <h2>Mensajes de WhatsApp</h2>
+                    <p style="color: var(--text-secondary); margin-bottom: 12px; max-width: 500px; line-height: 1.5; font-size: 14px;">Escribí cómo querés que le llegue el mensaje a tu cliente. Podés usar estos botones para insertar datos automáticos:</p>
+                    
+                    <div style="display: flex; gap: 8px; margin-bottom: 24px; flex-wrap: wrap; max-width: 500px;">
+                        <button type="button" class="action-btn" onclick="insertTag('{nombre}')" style="background: rgba(99,102,241,0.1); border-color: #6366f1; color: #818cf8; font-size: 12px; padding: 6px 10px;">+ Nombre</button>
+                        <button type="button" class="action-btn" onclick="insertTag('{servicio}')" style="background: rgba(99,102,241,0.1); border-color: #6366f1; color: #818cf8; font-size: 12px; padding: 6px 10px;">+ Servicio</button>
+                        <button type="button" class="action-btn" onclick="insertTag('{monto}')" style="background: rgba(99,102,241,0.1); border-color: #6366f1; color: #818cf8; font-size: 12px; padding: 6px 10px;">+ Monto</button>
+                        <button type="button" class="action-btn" onclick="insertTag('{vencimiento}')" style="background: rgba(99,102,241,0.1); border-color: #6366f1; color: #818cf8; font-size: 12px; padding: 6px 10px;">+ Fecha</button>
+                    </div>
+                    
+                    <div class="form-group" style="margin-bottom: 20px; max-width: 500px;">
+                        <label style="color: var(--status-pending);">Recordatorio "Amigable" (para clientes pendientes)</label>
+                        <textarea id="wp-template-pending" rows="3" onfocus="window.lastFocusedTextarea = this" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(15, 23, 42, 0.5); color: white; resize: vertical; font-family: inherit; font-size: 14px; line-height: 1.5;"></textarea>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 24px; max-width: 500px;">
+                        <label style="color: var(--status-overdue);">Reclamo de Pago (para clientes vencidos)</label>
+                        <textarea id="wp-template-overdue" rows="3" onfocus="window.lastFocusedTextarea = this" style="width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(15, 23, 42, 0.5); color: white; resize: vertical; font-family: inherit; font-size: 14px; line-height: 1.5;"></textarea>
+                    </div>
+
+                    <button class="btn-primary" id="btn-save-templates">Guardar Mensajes</button>
+                    
+                </section>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Modal Nuevo Cliente -->
+    <div class="modal-overlay" id="client-modal">
+        <div class="modal-content glass-panel">
+            <div class="modal-header">
+                <h2 id="modal-title">Nuevo Cliente</h2>
+                <button class="close-modal-btn" id="close-modal"><i class="ph ph-x"></i></button>
+            </div>
+            <form id="add-client-form" class="modal-form">
+                <input type="hidden" id="edit-client-id">
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Nombre y Apellido</label>
+                        <input type="text" id="client-name" required placeholder="Ej: Juan Pérez">
+                    </div>
+                    <div class="form-group">
+                        <label>Teléfono (WhatsApp)</label>
+                        <input type="tel" id="client-phone" required placeholder="Ej: 5491123456789">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Servicio / Actividad</label>
+                        <select id="client-plan" required>
+                            <option value="">Cargando servicios...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Monto ($)</label>
+                        <input type="number" id="client-amount" required min="0" placeholder="Ej: 15000">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Primer Vencimiento</label>
+                        <input type="date" id="client-date" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Estado Inicial</label>
+                        <select id="client-status">
+                            <option value="pending">Pendiente de pago</option>
+                            <option value="paid">Ya pagó este mes</option>
+                            <option value="overdue">Vencido / Deudor</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" id="cancel-client">Cancelar</button>
+                    <button type="submit" class="btn-primary" id="btn-save-client">Guardar Cliente</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Registrar Pago -->
+    <div class="modal-overlay" id="payment-modal">
+        <div class="modal-content glass-panel" style="max-width: 400px;">
+            <div class="modal-header">
+                <h2>Registrar Pago</h2>
+                <button class="close-modal-btn" id="close-payment-modal"><i class="ph ph-x"></i></button>
+            </div>
+            <form id="payment-form" class="modal-form">
+                <input type="hidden" id="payment-client-id">
+                <input type="hidden" id="payment-amount">
+                
+                <p style="margin-bottom: 20px; color: var(--text-secondary); line-height: 1.5;">Confirmar cobro de <strong id="payment-client-name" style="color: var(--text-primary);"></strong> por la suma de <strong id="payment-amount-display" style="color: var(--text-primary); font-size: 16px;"></strong>.</p>
+                
+                <div class="form-group">
+                    <label>Método de Pago</label>
+                    <select id="payment-method" required>
+                        <option value="Efectivo">💵 Efectivo</option>
+                        <option value="Transferencia">🏦 Transferencia</option>
+                    </select>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" id="cancel-payment">Cancelar</button>
+                    <button type="submit" class="btn-primary" style="background: #10b981; color: white; border-color: #10b981;">Confirmar Pago</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
