@@ -1,8 +1,0 @@
-{
-  "name": "cobrogest",
-  "version": "1.0.0",
-  "description": "SaaS de gestion de cobros recurrentes",
-  "scripts": {
-    "build": "node build.js"
-  }
-}
