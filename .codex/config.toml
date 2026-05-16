@@ -1,0 +1,4 @@
+[mcp_servers.stitch-local]
+command = "npx.cmd"
+args = ["-y", "@_davideast/stitch-mcp", "proxy"]
+enabled = true
