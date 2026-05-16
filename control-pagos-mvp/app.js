@@ -99,10 +99,11 @@ document.getElementById('btn-register').addEventListener('click', async () => {
     else alert('¡Cuenta creada! Ahora esperá que el administrador apruebe tu acceso.');
 });
 
-// Cerrar sesión
+// --- Cerrar Sesión ---
 document.getElementById('btn-logout').addEventListener('click', async (e) => {
     e.preventDefault();
-    await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut();
+    if (error) alert('Error al cerrar sesión: ' + error.message);
 });
 
 
@@ -651,6 +652,9 @@ const pageTitle = document.getElementById('page-title');
 
 navItems.forEach(item => {
     item.addEventListener('click', (e) => {
+        // Ignorar el botón de cerrar sesión (se maneja arriba)
+        if (item.id === 'btn-logout') return;
+        
         e.preventDefault();
         
         // Ocultar todos
