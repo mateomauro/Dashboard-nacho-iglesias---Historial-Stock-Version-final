@@ -33,21 +33,36 @@ document.getElementById('btn-google-login').addEventListener('click', async () =
     if (error) alert('Error al iniciar sesión con Google: ' + error.message);
 });
 
-// Listener de estado de autenticación (Se ejecuta al arrancar o volver de Google)
-supabase.auth.onAuthStateChange((event, session) => {
+// Listener de estado de autenticación
+supabase.auth.onAuthStateChange(async (event, session) => {
     if (session) {
-        currentUser = session.user;
+        const user = session.user;
+        
+        // --- VERIFICAR SI EL USUARIO ESTÁ APROBADO ---
+        const { data: approved } = await supabase
+            .from('usuarios_aprobados')
+            .select('id')
+            .eq('email', user.email)
+            .single();
+        
+        if (!approved) {
+            // No aprobado: mostrar mensaje y cerrar sesión
+            document.getElementById('pending-approval').style.display = 'block';
+            await supabase.auth.signOut();
+            return;
+        }
+
+        currentUser = user;
         loginScreen.classList.remove('active');
         mainApp.style.display = 'flex';
+        document.getElementById('pending-approval').style.display = 'none';
         
-        // Extraer datos de Google
-        const name = session.user.user_metadata.full_name || session.user.email.split('@')[0];
-        const avatar = session.user.user_metadata.avatar_url || `https://ui-avatars.com/api/?name=${name}&background=random`;
+        const name = user.user_metadata?.full_name || user.email.split('@')[0];
+        const avatar = user.user_metadata?.avatar_url || `https://ui-avatars.com/api/?name=${name}&background=6366f1&color=fff`;
         
         document.querySelector('.user-name').textContent = name;
         document.querySelector('.avatar').src = avatar;
 
-        // Cargar datos
         loadData();
         loadServices();
         loadReceipts();
@@ -56,10 +71,32 @@ supabase.auth.onAuthStateChange((event, session) => {
         currentUser = null;
         loginScreen.classList.add('active');
         mainApp.style.display = 'none';
-        clients = [];
-        services = [];
-        receipts = [];
+        clients = []; services = []; receipts = [];
     }
+});
+
+// --- Login con Email/Contraseña ---
+document.getElementById('auth-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('auth-email').value;
+    const password = document.getElementById('auth-password').value;
+    const btn = document.getElementById('btn-login');
+    btn.textContent = 'Ingresando...';
+    btn.disabled = true;
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    btn.textContent = 'Ingresar';
+    btn.disabled = false;
+    if (error) alert('Error: ' + error.message);
+});
+
+// --- Crear Cuenta con Email ---
+document.getElementById('btn-register').addEventListener('click', async () => {
+    const email = document.getElementById('auth-email').value;
+    const password = document.getElementById('auth-password').value;
+    if (!email || password.length < 6) return alert('Completá el email y una contraseña de al menos 6 caracteres.');
+    const { error } = await supabase.auth.signUp({ email, password });
+    if (error) alert('Error: ' + error.message);
+    else alert('¡Cuenta creada! Ahora esperá que el administrador apruebe tu acceso.');
 });
 
 // Cerrar sesión
