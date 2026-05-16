@@ -12,6 +12,9 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
+    <!-- Toast Notifications Container -->
+    <div id="toast-container" class="toast-container"></div>
+
     <!-- Login Screen -->
     <div id="login-screen" class="login-overlay active">
         <div class="login-box glass-panel">
@@ -277,10 +280,12 @@
     <div class="modal-overlay" id="client-modal">
         <div class="modal-content glass-panel">
             <div class="modal-header">
-                <h2>Nuevo Cliente</h2>
+                <h2 id="modal-title">Nuevo Cliente</h2>
                 <button class="close-modal-btn" id="close-modal"><i class="ph ph-x"></i></button>
             </div>
             <form id="add-client-form" class="modal-form">
+                <input type="hidden" id="edit-client-id">
+
                 <div class="form-row">
                     <div class="form-group">
                         <label>Nombre y Apellido</label>
@@ -313,12 +318,13 @@
                         <select id="client-status">
                             <option value="pending">Pendiente de pago</option>
                             <option value="paid">Ya pagó este mes</option>
+                            <option value="overdue">Vencido / Deudor</option>
                         </select>
                     </div>
                 </div>
                 <div class="modal-actions">
                     <button type="button" class="btn-secondary" id="cancel-client">Cancelar</button>
-                    <button type="submit" class="btn-primary">Guardar Cliente</button>
+                    <button type="submit" class="btn-primary" id="btn-save-client">Guardar Cliente</button>
                 </div>
             </form>
         </div>

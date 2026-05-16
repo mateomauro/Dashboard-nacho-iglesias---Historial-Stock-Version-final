@@ -30,7 +30,7 @@ document.getElementById('btn-google-login').addEventListener('click', async () =
             redirectTo: window.location.origin
         }
     });
-    if (error) alert('Error al iniciar sesión con Google: ' + error.message);
+    if (error) showToast('Error al iniciar sesión con Google: ' + error.message, 'error');
 });
 
 // Listener de estado de autenticación
@@ -86,7 +86,7 @@ document.getElementById('auth-form').addEventListener('submit', async (e) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     btn.textContent = 'Ingresar';
     btn.disabled = false;
-    if (error) alert('Error: ' + error.message);
+    if (error) showToast('Error: ' + error.message, 'error');
 });
 
 // --- Crear Cuenta con Email ---
@@ -95,15 +95,15 @@ document.getElementById('btn-register').addEventListener('click', async () => {
     const password = document.getElementById('auth-password').value;
     if (!email || password.length < 6) return alert('Completá el email y una contraseña de al menos 6 caracteres.');
     const { error } = await supabase.auth.signUp({ email, password });
-    if (error) alert('Error: ' + error.message);
-    else alert('¡Cuenta creada! Ahora esperá que el administrador apruebe tu acceso.');
+    if (error) showToast('Error: ' + error.message, 'error');
+    else showToast('¡Cuenta creada! Esperá la aprobación del administrador.', 'info');
 });
 
 // --- Cerrar Sesión ---
 document.getElementById('btn-logout').addEventListener('click', async (e) => {
     e.preventDefault();
     const { error } = await supabase.auth.signOut();
-    if (error) alert('Error al cerrar sesión: ' + error.message);
+    if (error) showToast('Error al cerrar sesión: ' + error.message, 'error');
 });
 
 
@@ -118,22 +118,31 @@ const loadData = async () => {
 
     if (error) {
         console.error('Error cargando clientes:', error);
+        showToast('Error de conexión con la base de datos', 'error');
         return;
     }
 
-    // Auto-detección de vencidos
+    if (!data) {
+        clients = [];
+        updateUI();
+        return;
+    }
+
+    // Auto-detección de vencidos (solo para los que no están al día)
     const today = new Date();
     today.setHours(0,0,0,0);
     
     for (let c of data) {
-        // Para evitar problemas de zona horaria con las fechas
+        if (c.estado === 'al_dia') continue; // Si ya pagó, no lo procesamos
+        
         const [year, month, day] = c.fecha_vencimiento.split('-');
         const dueDate = new Date(year, month - 1, day);
         dueDate.setHours(0,0,0,0);
         
         if (dueDate < today && c.estado !== 'vencido') {
             c.estado = 'vencido';
-            await supabase.from('clientes').update({ estado: 'vencido' }).eq('id', c.id);
+            // Update silencioso
+            supabase.from('clientes').update({ estado: 'vencido' }).eq('id', c.id).then();
         }
     }
 
@@ -157,6 +166,35 @@ const getInitials = (name) => name.split(' ').map(n => n[0]).join('').substring(
 
 const translateStatus = (status) => {
     return { 'al_dia': 'Al día', 'pendiente': 'Pendiente', 'vencido': 'Vencido' }[status] || status;
+};
+
+// --- TOAST NOTIFICATIONS ---
+const showToast = (message, type = 'success') => {
+    const container = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    
+    const icons = {
+        success: 'ph-check-circle',
+        error: 'ph-x-circle',
+        info: 'ph-info'
+    };
+    
+    toast.innerHTML = `
+        <i class="ph ${icons[type]}"></i>
+        <span>${message}</span>
+    `;
+    
+    container.appendChild(toast);
+    
+    // Forzar reflow para animación
+    setTimeout(() => toast.classList.add('show'), 10);
+    
+    // Eliminar después de 3 segundos
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 400);
+    }, 3000);
 };
 
 
@@ -258,9 +296,10 @@ const renderTable = () => {
                            .replace(/{vencimiento}/g, dateStr);
 
             const wpUrl = `https://wa.me/${client.telefono}?text=${encodeURIComponent(wpText)}`;
-            actionHTML += `<a href="${wpUrl}" target="_blank" class="action-btn wp-btn" title="Enviar WhatsApp"><i class="ph ph-whatsapp-logo"></i></a>`;
+        actionHTML += `<a href="${wpUrl}" target="_blank" class="action-btn wp-btn" title="Enviar WhatsApp"><i class="ph ph-whatsapp-logo"></i></a>`;
         }
 
+        actionHTML += `<button class="action-btn" onclick="openEditModal('${client.id}')" title="Editar"><i class="ph ph-pencil"></i></button>`;
         actionHTML += `<button class="action-btn delete-btn" onclick="deleteClient('${client.id}')" title="Eliminar"><i class="ph ph-trash"></i></button>`;
 
         const daysData = getDaysData(client.fecha_vencimiento);
@@ -317,12 +356,21 @@ document.getElementById('cancel-payment').addEventListener('click', closePayment
 document.getElementById('payment-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     
+    const btn = e.target.querySelector('button[type="submit"]');
+    const originalText = btn.textContent;
+    btn.textContent = 'Procesando...';
+    btn.disabled = true;
+
     const id = document.getElementById('payment-client-id').value;
     const amount = parseFloat(document.getElementById('payment-amount').value);
     const method = document.getElementById('payment-method').value;
     
     const client = clients.find(c => c.id === id);
-    if(!client) return;
+    if(!client) {
+        btn.textContent = originalText;
+        btn.disabled = false;
+        return;
+    }
 
     // Calcular próxima fecha de vencimiento sumando 1 mes
     const [year, month, day] = client.fecha_vencimiento.split('-');
@@ -338,7 +386,11 @@ document.getElementById('payment-form').addEventListener('submit', async (e) => 
         .update({ estado: 'al_dia', fecha_vencimiento: newDueDate })
         .eq('id', id);
         
-    if (err1) return alert('Error al actualizar: ' + err1.message);
+    if (err1) {
+        btn.textContent = originalText;
+        btn.disabled = false;
+        return showToast('Error al actualizar: ' + err1.message, 'error');
+    }
 
     await supabase.from('pagos').insert([{ 
         cliente_id: id, 
@@ -347,18 +399,24 @@ document.getElementById('payment-form').addEventListener('submit', async (e) => 
         metodo_pago: method
     }]);
     
+    showToast('¡Pago registrado con éxito! 💵');
     loadReceipts(); 
     client.estado = 'al_dia';
     client.fecha_vencimiento = newDueDate;
     updateUI();
     closePaymentModal();
+    
+    btn.textContent = originalText;
+    btn.disabled = false;
 });
 
 window.deleteClient = async (id) => {
     if (!confirm('¿Estás seguro de que querés eliminar a este cliente?')) return;
 
     const { error } = await supabase.from('clientes').delete().eq('id', id);
-    if (error) return alert('Error al eliminar: ' + error.message);
+    if (error) return showToast('Error al eliminar: ' + error.message, 'error');
+    
+    showToast('Cliente eliminado');
 
     clients = clients.filter(c => c.id !== id);
     updateUI();
@@ -368,14 +426,40 @@ window.deleteClient = async (id) => {
 // --- MODAL NUEVO CLIENTE ---
 const modal = document.getElementById('client-modal');
 
-const openModal = () => {
+window.openEditModal = (id) => {
+    const client = clients.find(c => c.id === id);
+    if (!client) return;
+
+    document.getElementById('modal-title').textContent = 'Editar Cliente';
+    document.getElementById('edit-client-id').value = client.id;
+    document.getElementById('client-name').value = client.nombre;
+    document.getElementById('client-phone').value = client.telefono || '';
+    document.getElementById('client-plan').value = client.servicio;
+    document.getElementById('client-amount').value = client.monto_mensual;
+    document.getElementById('client-date').value = client.fecha_vencimiento;
+    
+    const reverseEstadoMap = { 'al_dia': 'paid', 'pendiente': 'pending', 'vencido': 'overdue' };
+    document.getElementById('client-status').value = reverseEstadoMap[client.estado] || 'pending';
+    
+    document.getElementById('btn-save-client').textContent = 'Actualizar Datos';
     modal.classList.add('active');
+};
+
+const openModal = () => {
+    document.getElementById('modal-title').textContent = 'Nuevo Cliente';
+    document.getElementById('edit-client-id').value = '';
+    document.getElementById('btn-save-client').textContent = 'Guardar Cliente';
+    document.getElementById('add-client-form').reset();
     document.getElementById('client-date').valueAsDate = new Date();
+    modal.classList.add('active');
 };
 
 const closeModal = () => {
     modal.classList.remove('active');
-    document.getElementById('add-client-form').reset();
+    setTimeout(() => {
+        document.getElementById('add-client-form').reset();
+        document.getElementById('edit-client-id').value = '';
+    }, 300);
 };
 
 document.getElementById('add-client-btn').addEventListener('click', openModal);
@@ -386,9 +470,10 @@ modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); }
 document.getElementById('add-client-form').addEventListener('submit', async (e) => {
     e.preventDefault();
 
+    const editId = document.getElementById('edit-client-id').value;
     const estadoMap = { 'paid': 'al_dia', 'pending': 'pendiente', 'overdue': 'vencido' };
 
-    const newClientData = {
+    const clientData = {
         usuario_id: currentUser.id,
         nombre: document.getElementById('client-name').value,
         telefono: document.getElementById('client-phone').value,
@@ -398,15 +483,44 @@ document.getElementById('add-client-form').addEventListener('submit', async (e) 
         estado: estadoMap[document.getElementById('client-status').value] || 'pendiente'
     };
 
-    const { data, error } = await supabase.from('clientes').insert([newClientData]).select();
+    if (editId) {
+        // ACTUALIZAR
+        const { data, error } = await supabase.from('clientes').update(clientData).eq('id', editId).select();
+        
+        if (error) {
+            console.error('Error Supabase:', error);
+            return showToast('Error al actualizar: ' + error.message, 'error');
+        }
+        
+        if (data && data.length > 0) {
+            const idx = clients.findIndex(c => c.id === editId);
+            if (idx !== -1) clients[idx] = data[0];
+            showToast('Datos actualizados correctamente');
+        } else {
+            await loadData();
+            showToast('Datos actualizados');
+        }
+    } else {
+        const btnSave = document.getElementById('btn-save-client');
+        const originalText = btnSave.textContent;
+        btnSave.textContent = 'Guardando...';
+        btnSave.disabled = true;
 
-    if (error) return alert('Error al guardar: ' + error.message);
+        const { data, error } = await supabase.from('clientes').insert([clientData]).select();
+        
+        btnSave.textContent = originalText;
+        btnSave.disabled = false;
 
-    if (data && data[0]) {
-        clients.unshift(data[0]);
-        closeModal();
-        updateUI();
+        if (error) return showToast('Error al guardar: ' + error.message, 'error');
+        
+        if (data && data[0]) {
+            clients.unshift(data[0]);
+            showToast('¡Cliente registrado! 🚀');
+        }
     }
+
+    closeModal();
+    updateUI();
 });
 
 
@@ -464,7 +578,7 @@ document.getElementById('btn-add-service').addEventListener('click', async () =>
     
     // Evitar duplicados
     if (services.find(s => s.nombre.toLowerCase() === val.toLowerCase())) {
-        return alert('Este servicio ya existe');
+        return showToast('Este servicio ya existe', 'info');
     }
     
     const btn = document.getElementById('btn-add-service');
@@ -477,7 +591,9 @@ document.getElementById('btn-add-service').addEventListener('click', async () =>
         
     btn.textContent = 'Agregar';
 
-    if (error) return alert('Error al guardar servicio: ' + error.message);
+    if (error) return showToast('Error al guardar servicio: ' + error.message, 'error');
+    
+    showToast('Servicio agregado');
     
     if (data && data[0]) {
         services.push(data[0]);
@@ -490,7 +606,9 @@ window.deleteService = async (id) => {
     if(!confirm('¿Eliminar este servicio? (No afectará a los clientes ya cargados)')) return;
     
     const { error } = await supabase.from('servicios').delete().eq('id', id);
-    if (error) return alert('Error al eliminar: ' + error.message);
+    if (error) return showToast('Error al eliminar: ' + error.message, 'error');
+    
+    showToast('Servicio eliminado');
     
     services = services.filter(s => s.id !== id);
     renderServicesUI();
@@ -547,10 +665,12 @@ document.getElementById('btn-save-templates').addEventListener('click', async ()
     });
     
     if (error) {
-        alert('Error al guardar en base de datos: ' + error.message);
+        showToast('Error al guardar en base de datos: ' + error.message, 'error');
         btn.textContent = originalText;
         return;
     }
+    
+    showToast('Configuración guardada con éxito');
     
     btn.textContent = '¡Guardado en la Nube!';
     btn.style.background = '#10b981';
@@ -675,9 +795,19 @@ navItems.forEach(item => {
 
 // Filtros desde Dashboard
 window.goToFilteredClients = (statusValue) => {
-    document.getElementById('nav-clientes').click();
-    document.getElementById('status-filter').value = statusValue;
-    renderTable();
+    const navItem = document.getElementById('nav-clientes');
+    if (navItem) {
+        navItem.click(); // Cambia a la pestaña de clientes
+        
+        // Esperamos un poquito a que la vista cambie antes de aplicar el filtro
+        setTimeout(() => {
+            const statusFilter = document.getElementById('status-filter');
+            if (statusFilter) {
+                statusFilter.value = statusValue;
+                renderTable();
+            }
+        }, 100);
+    }
 };
 
 }); // Fin DOMContentLoaded
