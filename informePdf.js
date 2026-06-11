@@ -117,8 +117,11 @@ function computeRowBottoms(captureEl, canvasH) {
 }
 
 /** Control de "fila viuda": si la última hoja quedó con un resto ínfimo (1 fila),
-    sube el corte anterior para dejarle ~2-3 filas juntas. Muta `out`. */
-function applyWidowControl(out, bottoms, canvasH) {
+    sube el corte anterior para dejarle ~2-3 filas juntas. Muta `out`.
+    Pensado para tablas de MUCHAS filas chicas: mover el corte cuesta poco.
+    Con filas gigantes (p. ej. la bitácora: 4 tarjetas grandes) NO debe actuar:
+    subiría el corte tanto que dejaría la hoja anterior casi vacía. */
+function applyWidowControl(out, bottoms, canvasH, pageHpx) {
     if (out.length < 3) return;
     const diffs = [];
     for (let i = 1; i < bottoms.length; i++) {
@@ -138,7 +141,12 @@ function applyWidowControl(out, bottoms, canvasH) {
         for (const b of bottoms) {
             if (b > floor + 1 && b <= target && b > best) best = b;
         }
-        if (best > floor && best < out[penult]) out[penult] = Math.round(best);
+        /* Guard: la hoja anterior debe quedar ≥70% llena tras mover el corte.
+           Si no (filas enormes), preferimos el blanco al FINAL, nunca al principio. */
+        const keepsPageFull = pageHpx > 0 ? (best - floor) >= pageHpx * 0.7 : true;
+        if (best > floor && best < out[penult] && keepsPageFull) {
+            out[penult] = Math.round(best);
+        }
     }
 }
 
@@ -169,7 +177,7 @@ function sliceGreedy(bottoms, canvasH, pageHpx, firstAvailPx, widow = true) {
     if (out[out.length - 1] < canvasH) out.push(canvasH);
     /* En soft-fill NO aplicamos viuda: queremos llenar el blanco al máximo; el resto
        fluye (aunque la última franja quede corta, suele ser contenido final). */
-    if (widow) applyWidowControl(out, bottoms, canvasH);
+    if (widow) applyWidowControl(out, bottoms, canvasH, pageHpx);
     return [...new Set(out)].sort((a, b) => a - b);
 }
 
