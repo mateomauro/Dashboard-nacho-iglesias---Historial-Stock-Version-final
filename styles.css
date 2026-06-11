@@ -69,10 +69,10 @@
     --font-body: 'Fira Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 
     /* Shadows — deeper for premium feel */
-    --shadow-sm: 0 1px 3px 0 rgb(30 64 175 / 0.06), 0 1px 2px -1px rgb(30 64 175 / 0.06);
-    --shadow-md: 0 4px 12px -2px rgb(30 64 175 / 0.12), 0 2px 6px -2px rgb(30 64 175 / 0.08);
-    --shadow-lg: 0 12px 28px -4px rgb(30 64 175 / 0.16), 0 4px 8px -4px rgb(30 64 175 / 0.1);
-    --shadow-xl: 0 20px 40px -8px rgb(30 64 175 / 0.2), 0 8px 16px -6px rgb(30 64 175 / 0.12);
+    --shadow-sm: 0 1px 3px 0 rgba(30, 64, 175, 0.06), 0 1px 2px -1px rgba(30, 64, 175, 0.06);
+    --shadow-md: 0 4px 12px -2px rgba(30, 64, 175, 0.12), 0 2px 6px -2px rgba(30, 64, 175, 0.08);
+    --shadow-lg: 0 12px 28px -4px rgba(30, 64, 175, 0.16), 0 4px 8px -4px rgba(30, 64, 175, 0.1);
+    --shadow-xl: 0 20px 40px -8px rgba(30, 64, 175, 0.2), 0 8px 16px -6px rgba(30, 64, 175, 0.12);
 
     /* Radius */
     --radius-sm: 6px;
@@ -1342,6 +1342,99 @@ body {
     margin-bottom: var(--space-lg);
 }
 
+.informe-section-header {
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.informe-header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.informe-pdf-hint {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    line-height: 1.45;
+    margin: 0 0 var(--space-md) 0;
+    max-width: 720px;
+}
+
+.report-generator-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-md);
+    padding: var(--space-lg);
+}
+
+.report-generator-content {
+    display: grid;
+    grid-template-columns: minmax(180px, 240px) auto minmax(180px, 240px) auto;
+    align-items: end;
+    gap: var(--space-sm);
+}
+
+.report-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.report-field label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.report-generator-note {
+    color: var(--text-secondary);
+    font-size: 0.8125rem;
+    line-height: 1.45;
+    margin-top: var(--space-md);
+}
+
+.report-generator-note .report-inline-code {
+    font-size: 0.75rem;
+    background: rgba(15, 23, 42, 0.06);
+    padding: 0.1em 0.35em;
+    border-radius: 4px;
+    word-break: break-word;
+}
+
+.report-fechas-hint {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    line-height: 1.45;
+    margin: var(--space-sm) 0 0 0;
+}
+
+select.filter-date-input.report-informe-fecha {
+    cursor: pointer;
+    padding-right: 40px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+}
+
+.btn-informe-pdf.btn-secondary {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+    box-shadow: 0 2px 6px rgba(30, 64, 175, 0.25);
+}
+
+.btn-informe-pdf.btn-secondary:hover {
+    background: var(--primary-dark);
+    color: #fff;
+    border-color: var(--primary-dark);
+}
+
 .btn-secondary {
     background: white;
     color: var(--text-secondary);
@@ -2348,6 +2441,15 @@ body.fullscreen-active {
 
 /* Mobile 375px */
 @media (max-width: 640px) {
+    .report-generator-content {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+    }
+
+    .report-generator-content .range-separator {
+        display: none;
+    }
+
     .panel-container {
         max-width: 88%;
     }

@@ -4,6 +4,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { supabaseClient } from './src/lib/supabase.js';
 import { setAuthUiHandler } from './src/lib/authBridge.js';
+import { downloadGanaderiaInformePdf } from './informePdf.js';
 
 // ===== GLOBAL STATE =====
 let chartInstance = null;
@@ -13,6 +14,8 @@ const SESSION_DURATION = 60 * 60 * 1000; // 1 hora en milisegundos
 let activeFetchRequestId = 0;
 // Filas del último snapshot con Cantidad > 0 (base para los desplegables dependientes).
 let snapshotPositiveData = [];
+/** Fechas distintas en Historial_Stock (yyyy-mm-dd), ascendente — solo estas entran al informe. */
+let informeFechasStockAsc = [];
 const RELATION_FILTER_CONFIG = [
     { key: 'Campo', selectId: 'filter-campo', allLabel: 'Todos los campos' },
     { key: 'Rodeo', selectId: 'filter-rodeo', allLabel: 'Todos los rodeos' },
@@ -122,18 +125,21 @@ function hideLoading() {
 }
 
 // ===== VIEW SWITCHER LOGIC =====
-let activeView = 'dashboard'; // 'dashboard' | 'informe' | 'matrix'
+let activeView = 'dashboard'; // 'dashboard' | 'informe' | 'matrix' | 'database'
 
 function setupViewSwitcher() {
     const tabDashboard = document.getElementById('view-tab-dashboard');
     const tabInforme = document.getElementById('view-tab-informe');
     const tabMatrix = document.getElementById('view-tab-matrix');
+    const tabDatabase = document.getElementById('view-tab-database');
 
     const viewDashboard = document.getElementById('view-dashboard');
     const viewInforme = document.getElementById('view-informe');
     const viewMatrix = document.getElementById('view-matrix');
+    const viewDatabase = document.getElementById('view-database');
+    const sharedFilters = document.querySelector('.filter-section');
 
-    if (!tabDashboard || !tabInforme || !tabMatrix) return;
+    if (!tabDashboard || !tabInforme || !tabMatrix || !tabDatabase) return;
 
     function switchView(target) {
         activeView = target;
@@ -152,11 +158,21 @@ function setupViewSwitcher() {
         tabMatrix.setAttribute('aria-selected', target === 'matrix');
         viewMatrix.classList.toggle('active', target === 'matrix');
         viewMatrix.style.display = target === 'matrix' ? 'block' : 'none';
+
+        tabDatabase.classList.toggle('active', target === 'database');
+        tabDatabase.setAttribute('aria-selected', target === 'database');
+        viewDatabase.classList.toggle('active', target === 'database');
+        viewDatabase.style.display = target === 'database' ? 'block' : 'none';
+
+        if (sharedFilters) {
+            sharedFilters.style.display = target === 'informe' ? 'none' : '';
+        }
     }
 
     tabDashboard.addEventListener('click', () => switchView('dashboard'));
     tabInforme.addEventListener('click', () => switchView('informe'));
     tabMatrix.addEventListener('click', () => switchView('matrix'));
+    tabDatabase.addEventListener('click', () => switchView('database'));
 }
 
 // ===== DATE FILTER MODE MANAGEMENT =====
@@ -670,6 +686,8 @@ async function initializeFilters() {
 
         // Fechas únicas y ordenadas
         const fechasRaw = [...new Set(data.map(item => item.Fecha))].filter(Boolean);
+        informeFechasStockAsc = [...fechasRaw].sort((a, b) => a.localeCompare(b));
+        populateInformeFechaSelects();
         const fechasDesc = fechasRaw.sort((a, b) => new Date(b) - new Date(a));
         const fechaSelect = document.getElementById('filter-date-single');
         if (fechaSelect && fechaSelect.tagName === 'SELECT') {
@@ -702,6 +720,8 @@ async function initializeFilters() {
         hideLoading();
         console.error('Error inicializando filtros:', error);
         showError('Error al cargar filtros del servidor.');
+        informeFechasStockAsc = [];
+        populateInformeFechaSelects();
     }
 }
 
@@ -1694,6 +1714,125 @@ function convertToCSV(objArray) {
     return str;
 }
 
+function formatInformeFechaOptionLabel(iso) {
+    if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso || '—';
+    const [y, m, d] = iso.split('-');
+    return `${d}/${m}/${y}`;
+}
+
+function populateInformeFechaSelects() {
+    const fromEl = document.getElementById('report-date-from');
+    const toEl = document.getElementById('report-date-to');
+    const hintEl = document.getElementById('report-fechas-hint');
+    if (!fromEl || !toEl) return;
+
+    const asc = informeFechasStockAsc;
+    const prevFrom = fromEl.value;
+    const prevTo = toEl.value;
+
+    fromEl.innerHTML = '';
+    if (!asc.length) {
+        const o = document.createElement('option');
+        o.value = '';
+        o.textContent = 'No hay fechas disponibles';
+        fromEl.appendChild(o);
+        toEl.innerHTML = '';
+        toEl.appendChild(o.cloneNode(true));
+        if (hintEl) {
+            hintEl.textContent = 'No se encontraron registros de stock. Revisá la conexión o cargá datos.';
+            hintEl.hidden = false;
+        }
+        return;
+    }
+
+    asc.forEach((iso) => {
+        const o = document.createElement('option');
+        o.value = iso;
+        o.textContent = formatInformeFechaOptionLabel(iso);
+        fromEl.appendChild(o);
+    });
+
+    if (prevFrom && asc.includes(prevFrom)) {
+        fromEl.value = prevFrom;
+    } else {
+        fromEl.value = asc[0];
+    }
+
+    refreshInformeCierreOptions(prevTo);
+
+    if (hintEl) {
+        const first = formatInformeFechaOptionLabel(asc[0]);
+        const last = formatInformeFechaOptionLabel(asc[asc.length - 1]);
+        hintEl.textContent = `Hay registros de stock disponibles entre el ${first} y el ${last}.`;
+        hintEl.hidden = false;
+    }
+}
+
+/** Opciones de cierre: fechas con dato, siempre ≥ inicio. */
+function refreshInformeCierreOptions(preferredTo) {
+    const fromEl = document.getElementById('report-date-from');
+    const toEl = document.getElementById('report-date-to');
+    if (!fromEl || !toEl) return;
+
+    const fromVal = fromEl.value;
+    const asc = informeFechasStockAsc;
+    const eligible = fromVal ? asc.filter((f) => f >= fromVal) : [...asc];
+    const want = preferredTo !== undefined ? preferredTo : toEl.value;
+
+    toEl.innerHTML = '';
+    eligible.forEach((iso) => {
+        const o = document.createElement('option');
+        o.value = iso;
+        o.textContent = formatInformeFechaOptionLabel(iso);
+        toEl.appendChild(o);
+    });
+
+    if (want && eligible.includes(want)) {
+        toEl.value = want;
+    } else {
+        toEl.value = eligible[eligible.length - 1] || '';
+    }
+}
+
+function initInformeFechaSelectors() {
+    const fromEl = document.getElementById('report-date-from');
+    if (!fromEl || fromEl.tagName !== 'SELECT') return;
+    fromEl.addEventListener('change', () => refreshInformeCierreOptions());
+}
+
+function initInformePdfButton() {
+    const btn = document.getElementById('btn-download-informe-pdf');
+    if (!btn) return;
+
+    btn.addEventListener('click', async () => {
+        const fecha1ISO = document.getElementById('report-date-from').value;
+        const fecha2ISO = document.getElementById('report-date-to').value;
+        if (!fecha1ISO || !fecha2ISO) {
+            alert('Completá fecha de inicio y fecha de cierre para generar el informe.');
+            return;
+        }
+        if (fecha1ISO > fecha2ISO) {
+            alert('La fecha inicial no puede ser mayor que la final.');
+            return;
+        }
+
+        const label = btn.querySelector('.btn-text') || btn;
+        const prev = label.textContent;
+        btn.disabled = true;
+        label.textContent = 'Generando PDF…';
+
+        try {
+            await downloadGanaderiaInformePdf({ fecha1ISO, fecha2ISO });
+        } catch (e) {
+            console.error(e);
+            alert('No se pudo generar el PDF.\n\nDetalle: ' + (e?.message || e));
+        } finally {
+            btn.disabled = false;
+            label.textContent = prev;
+        }
+    });
+}
+
 function initExportCSVButton() {
     const btn = document.getElementById('btn-export-csv');
     if (!btn) return;
@@ -2430,6 +2569,8 @@ function initFullscreenMatrixButton() {
 async function initializeDashboard() {
     // Setup View Tabs
     setupViewSwitcher();
+    initInformeFechaSelectors();
+    initInformePdfButton();
     initExportCSVButton();
     initExportMatrixExcelButton();
     initExportMatrixPDFButton();

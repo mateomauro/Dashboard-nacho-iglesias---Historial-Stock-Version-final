@@ -1,36 +1,56 @@
 import { createClient } from '@supabase/supabase-js';
 
-const DEFAULT_URL = 'https://urquftsucjtqxogjjhhx.supabase.co';
-const DEFAULT_ANON_KEY =
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVycXVmdHN1Y2p0cXhvZ2pqaGh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE4NjQ3MjMsImV4cCI6MjA4NzQ0MDcyM30.GJu2UaYFqQAXMgghQY1Xag62tKecNG8hk-nzsvYKdzE';
+/* La URL y la anon key se leen SOLO de variables de entorno
+   (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY). No se hardcodean credenciales
+   en el repositorio — definilas en un archivo .env (ver README). */
+
+function getProcessEnv(key) {
+    try {
+        if (typeof process !== 'undefined' && process.env && typeof process.env[key] === 'string') {
+            return process.env[key];
+        }
+    } catch {
+        /* noop */
+    }
+    return undefined;
+}
+
+function readEnv(key) {
+    const raw =
+        (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) ||
+        getProcessEnv(key);
+    if (raw == null || typeof raw !== 'string') return '';
+    return raw.trim().replace(/^['"]|['"]$/g, '');
+}
 
 function resolveSupabaseUrl() {
-    const raw = import.meta.env.VITE_SUPABASE_URL;
-    if (raw == null || typeof raw !== 'string') return DEFAULT_URL;
-    let u = raw.trim().replace(/^['"]|['"]$/g, '');
-    if (!u) return DEFAULT_URL;
+    let u = readEnv('VITE_SUPABASE_URL');
+    if (!u) {
+        throw new Error(
+            'Falta VITE_SUPABASE_URL. Definila en el archivo .env (ver README).',
+        );
+    }
     if (!/^https?:\/\//i.test(u)) {
         u = `https://${u.replace(/^\/+/, '')}`;
     }
-    try {
-        const parsed = new URL(u);
-        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-            return DEFAULT_URL;
-        }
-        return u;
-    } catch {
-        return DEFAULT_URL;
+    const parsed = new URL(u); // lanza si es inválida
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+        throw new Error(`VITE_SUPABASE_URL inválida: ${u}`);
     }
+    return u;
 }
 
 function resolveAnonKey() {
-    const raw = import.meta.env.VITE_SUPABASE_ANON_KEY;
-    if (raw == null || typeof raw !== 'string') return DEFAULT_ANON_KEY;
-    const k = raw.trim().replace(/^['"]|['"]$/g, '');
-    return k || DEFAULT_ANON_KEY;
+    const k = readEnv('VITE_SUPABASE_ANON_KEY');
+    if (!k) {
+        throw new Error(
+            'Falta VITE_SUPABASE_ANON_KEY. Definila en el archivo .env (ver README).',
+        );
+    }
+    return k;
 }
 
 export const supabaseClient = createClient(
     resolveSupabaseUrl(),
-    resolveAnonKey()
+    resolveAnonKey(),
 );

@@ -2,3 +2,19 @@ node_modules/
 dist/
 .DS_Store
 *.log
+
+# Config de herramientas de IA / editores
+.agent/
+.claude/
+
+# Salidas de prueba (PDFs/PNG generados al testear)
+test-*.pdf
+test-*.png
+shot*.png
+
+# Credenciales Google (nunca commitear)
+**/prueba-*.json
+**/aym-*.json
+**/*service-account*.json
+.env
+.env.local

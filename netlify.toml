@@ -5,7 +5,12 @@
 [build.environment]
   NODE_VERSION = "20"
 
-# SPA (Vite): cualquier ruta sirve index.html (útil si más adelante usás rutas en el cliente)
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# /api/movements ya está declarado via `config.path` en la function (Functions v2).
+# El SPA fallback debe ir AL FINAL para no atrapar las llamadas /api/*.
 [[redirects]]
   from = "/*"
   to = "/index.html"

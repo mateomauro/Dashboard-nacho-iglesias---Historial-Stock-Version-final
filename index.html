@@ -111,6 +111,18 @@
                         </svg>
                         Tabla
                     </button>
+                    <button id="view-tab-database" class="view-tab" role="tab" aria-selected="false"
+                        aria-controls="view-database">
+                        <!-- SVG: Database (Lucide) -->
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            aria-hidden="true">
+                            <ellipse cx="12" cy="5" rx="9" ry="3" />
+                            <path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5" />
+                            <path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3" />
+                        </svg>
+                        Base de Datos
+                    </button>
                 </div>
             </div>
 
@@ -494,19 +506,68 @@
             <div id="view-informe" class="view-panel" style="display: none;" role="tabpanel"
                 aria-labelledby="view-tab-informe">
                 <section class="informe-section" aria-labelledby="informe-heading">
-                    <div class="section-header">
-                        <h2 id="informe-heading" class="section-title">Detalle de Registros</h2>
-                        <button id="btn-export-csv" class="btn-secondary" aria-label="Exportar a CSV">
-                            <!-- SVG: Download (Lucide) -->
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
-                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round" aria-hidden="true">
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                <polyline points="7 10 12 15 17 10" />
-                                <line x1="12" y1="15" x2="12" y2="3" />
-                            </svg>
-                            Exportar CSV
-                        </button>
+                    <div class="section-header informe-section-header">
+                        <div>
+                            <h2 id="informe-heading" class="section-title">Generar Informe Ganadero</h2>
+                            <p class="informe-pdf-hint">Elegí la fecha de inicio y la de cierre del período, y descargá
+                                el informe completo en PDF.</p>
+                        </div>
+                    </div>
+                    <div class="report-generator-card">
+                        <div class="report-generator-content">
+                            <div class="report-field">
+                                <label for="report-date-from">Fecha de inicio</label>
+                                <select id="report-date-from" class="filter-date-input report-informe-fecha" aria-label="Fecha de inicio del informe (solo fechas con registros de stock)">
+                                    <option value="">Cargando fechas…</option>
+                                </select>
+                            </div>
+                            <span class="range-separator" aria-hidden="true">→</span>
+                            <div class="report-field">
+                                <label for="report-date-to">Fecha de cierre</label>
+                                <select id="report-date-to" class="filter-date-input report-informe-fecha" aria-label="Fecha de cierre del informe (solo fechas con datos, ≥ inicio)">
+                                    <option value="">Cargando fechas…</option>
+                                </select>
+                            </div>
+                            <button type="button" id="btn-download-informe-pdf" class="btn-secondary btn-informe-pdf"
+                                aria-label="Descargar informe en PDF">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                    <polyline points="14 2 14 8 20 8" />
+                                    <line x1="16" y1="13" x2="8" y2="13" />
+                                    <line x1="16" y1="17" x2="8" y2="17" />
+                                    <polyline points="10 9 9 9 8 9" />
+                                </svg>
+                                <span class="btn-text">Descargar informe PDF</span>
+                            </button>
+                        </div>
+                        <p id="report-fechas-hint" class="report-fechas-hint" hidden></p>
+                        <p class="report-generator-note">El informe puede tardar unos segundos en generarse. No cierres
+                            esta ventana hasta que se descargue el PDF.</p>
+                    </div>
+                </section>
+            </div> <!-- End Informe View Panel -->
+
+            <!-- Base de Datos View Panel -->
+            <div id="view-database" class="view-panel" style="display: none;" role="tabpanel"
+                aria-labelledby="view-tab-database">
+                <section class="informe-section" aria-labelledby="database-heading">
+                    <div class="section-header informe-section-header">
+                        <h2 id="database-heading" class="section-title">Detalle de Registros</h2>
+                        <div class="informe-header-actions">
+                            <button id="btn-export-csv" class="btn-secondary" aria-label="Exportar a CSV">
+                                <!-- SVG: Download (Lucide) -->
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                    stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                                    <polyline points="7 10 12 15 17 10" />
+                                    <line x1="12" y1="15" x2="12" y2="3" />
+                                </svg>
+                                Exportar CSV
+                            </button>
+                        </div>
                     </div>
                     <div class="table-container-card">
                         <div class="table-responsive">
@@ -545,7 +606,7 @@
                         </div>
                     </div>
                 </section>
-            </div> <!-- End Informe View Panel -->
+            </div> <!-- End Base de Datos View Panel -->
 
             <!-- Matrix Tabla View Panel -->
             <div id="view-matrix" class="view-panel" style="display: none;" role="tabpanel"
