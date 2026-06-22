@@ -87,7 +87,7 @@ export function buildBitacoraHtml(groups) {
         const fechasHtml = g.fechas
             .map((f) => {
                 const items = f.items.map((it) => `<div class="tl-line">· ${esc(it)}</div>`).join('');
-                return `<div class="tl-fecha"><div class="tl-fecha-lbl">${esc(fmtFecha(f.fecha))}</div>${items}</div>`;
+                return `<div class="tl-fecha"><div class="tl-fecha-lbl">${esc(fmtFecha(f.fecha))}</div><div class="tl-items">${items}</div></div>`;
             })
             .join('');
         return `<td class="tl-cell"><div class="tl-card">`

@@ -47,7 +47,7 @@ const PDF_LAYOUT = [
     { kind: 'section', id: 'informe-pdf-s04e' }, // Traslados
     { kind: 'section', id: 'informe-pdf-s05b' }, // Programado vs Real — Manejo
     { kind: 'section', id: 'informe-pdf-s05c' }, // Programado vs Real — Sanitario
-    { kind: 'section', id: 'informe-pdf-s05d' }, // Narrativa (resumen)
+    { kind: 'section', id: 'informe-pdf-s05d', breakBefore: true }, // Narrativa (resumen) — sección 06: arranca en hoja nueva
     { kind: 'section', id: 'informe-pdf-s05e', softFill: true }, // Bitácora WhatsApp: puede partirse para llenar el blanco que dejó la sección anterior
 ];
 
@@ -375,7 +375,8 @@ function layoutBlocksToPdf(pdf, blocks, usableWmm, usableHmm) {
         const remainMm = usableHmm - curUsedMm - gap;
 
         // 1) ¿Entra ENTERA en lo que queda de la hoja actual? → apilar tal cual.
-        if (curUsedMm > 0 && sectionHmm <= remainMm + 0.5) {
+        //    (breakBefore: nunca apila; cae al paso 3 → hoja nueva.)
+        if (!b.breakBefore && curUsedMm > 0 && sectionHmm <= remainMm + 0.5) {
             const yTop = margin + curUsedMm + gap;
             divider(margin + curUsedMm + gap / 2);
             placeCanvasImage(pdf, b.canvas, margin, yTop, usableWmm, sectionHmm);
@@ -461,7 +462,7 @@ function buildPdfBlock(item, canvas, el, usableWmm, usableHmm) {
     if (sectionHmm > usableHmm + 0.5) {
         breakpoints = resolveBreakpoints(el, canvas.height, pageHeightPx, true).breakpoints;
     }
-    return { id: item.id, canvas, mode: 'section', breakpoints, bottoms, softFill };
+    return { id: item.id, canvas, mode: 'section', breakpoints, bottoms, softFill, breakBefore: item.breakBefore === true };
 }
 
 /**

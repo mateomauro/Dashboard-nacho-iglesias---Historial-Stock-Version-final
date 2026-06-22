@@ -1501,9 +1501,10 @@
     }
     .bitacora-grid .tl-campo { color: #166534; font-weight: 700; font-size: 14px; }
     .bitacora-grid .tl-badge { color: #94a3b8; font-weight: 600; font-size: 11px; white-space: nowrap; }
-    .bitacora-grid .tl-fecha { margin-top: 6px; }
-    .bitacora-grid .tl-fecha-lbl { font-weight: 700; color: #1d4ed8; }
-    .bitacora-grid .tl-fecha .tl-line { padding-left: 10px; }
+    .bitacora-grid .tl-fecha { display: flex; gap: 10px; align-items: baseline; margin-top: 6px; }
+    .bitacora-grid .tl-fecha-lbl { flex: 0 0 auto; min-width: 62px; font-weight: 700; color: #1d4ed8; }
+    .bitacora-grid .tl-items { flex: 1 1 auto; min-width: 0; }
+    .bitacora-grid .tl-line { font-size: 13px; }
     .bitacora-empty { color: #94a3b8; font-style: italic; font-size: 13px; margin-top: 4px; }
 
     .next-actions {
@@ -2393,9 +2394,9 @@
     body.informe-pdf-capture-mode .informe-pdf-exec-page .bitacora-grid .tl-head { padding-bottom: 6px !important; margin-bottom: 8px !important; }
     body.informe-pdf-capture-mode .informe-pdf-exec-page .bitacora-grid .tl-campo { font-size: 22px !important; }
     body.informe-pdf-capture-mode .informe-pdf-exec-page .bitacora-grid .tl-badge { font-size: 16px !important; }
-    body.informe-pdf-capture-mode .informe-pdf-exec-page .bitacora-grid .tl-fecha { margin-top: 9px !important; }
-    body.informe-pdf-capture-mode .informe-pdf-exec-page .bitacora-grid .tl-fecha-lbl { font-size: 20px !important; }
-    body.informe-pdf-capture-mode .informe-pdf-exec-page .bitacora-grid .tl-fecha .tl-line { padding-left: 14px !important; }
+    body.informe-pdf-capture-mode .informe-pdf-exec-page .bitacora-grid .tl-fecha { gap: 16px !important; margin-top: 9px !important; }
+    body.informe-pdf-capture-mode .informe-pdf-exec-page .bitacora-grid .tl-fecha-lbl { font-size: 20px !important; min-width: 96px !important; }
+    body.informe-pdf-capture-mode .informe-pdf-exec-page .bitacora-grid .tl-line { font-size: 20px !important; }
     body.informe-pdf-capture-mode .informe-pdf-exec-page .bitacora-empty { font-size: 16px !important; }
 
     /* Próximas acciones */
@@ -2553,6 +2554,11 @@
         page-break-before: auto;
       }
       #informe-pdf-s01 {
+        break-before: page;
+        page-break-before: always;
+      }
+      /* Narrativa + Bitácora (sección 06): siempre arranca en hoja nueva */
+      #informe-pdf-s05d {
         break-before: page;
         page-break-before: always;
       }
@@ -3431,7 +3437,7 @@
   <div id="informe-pdf-s05d" class="informe-pdf-section informe-pdf-exec-page">
   <div class="exec-sheet-header">
     <div class="section-label">
-      <span class="section-num">05</span>
+      <span class="section-num">06</span>
       <span class="section-title">Ejecución Operativa · Narrativa y próximos pasos</span>
     </div>
   </div>
