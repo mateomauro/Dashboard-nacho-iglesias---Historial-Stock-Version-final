@@ -1470,7 +1470,7 @@
 
     .narrative p:last-child { margin-bottom: 0; }
 
-    /* Bitácora WhatsApp — distribuida en columnas (tabla) para no quedar gigante */
+    /* Bitácora WhatsApp — tarjetas por campo, en 2 columnas (tabla) para el PDF */
     .bitacora-grid {
       width: 100%;
       border-collapse: collapse;
@@ -1479,17 +1479,31 @@
     }
     .bitacora-grid .tl-cell {
       vertical-align: top;
-      padding: 2px 16px 12px 12px;
-      border-left: 3px solid #bfdbfe;
+      padding: 6px;
       font-size: 13px;
       line-height: 1.4;
     }
-    .bitacora-grid .tl-cell b { color: #0f172a; font-weight: 600; }
-    .bitacora-grid .tl-campo { display: block; color: #166534; font-weight: 700; font-size: 14px; margin-bottom: 2px; }
-    .bitacora-grid .tl-fecha { margin-top: 5px; }
-    .bitacora-grid .tl-fecha-lbl { font-weight: 600; color: #475569; }
+    .bitacora-grid .tl-card {
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      background: #fff;
+      padding: 8px 12px 10px;
+    }
+    .bitacora-grid .tl-empty { padding: 0; }
+    .bitacora-grid .tl-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      border-bottom: 1px solid #eef2f7;
+      padding-bottom: 4px;
+      margin-bottom: 5px;
+    }
+    .bitacora-grid .tl-campo { color: #166534; font-weight: 700; font-size: 14px; }
+    .bitacora-grid .tl-badge { color: #94a3b8; font-weight: 600; font-size: 11px; white-space: nowrap; }
+    .bitacora-grid .tl-fecha { margin-top: 6px; }
+    .bitacora-grid .tl-fecha-lbl { font-weight: 700; color: #1d4ed8; }
     .bitacora-grid .tl-fecha .tl-line { padding-left: 10px; }
-    .bitacora-grid .tl-empty { border-left: none; }
     .bitacora-empty { color: #94a3b8; font-style: italic; font-size: 13px; margin-top: 4px; }
 
     .next-actions {
@@ -2370,10 +2384,15 @@
     body.informe-pdf-capture-mode .informe-pdf-exec-page .bitacora-grid .tl-cell {
       font-size: 20px !important;
       line-height: 1.45 !important;
-      padding: 2px 20px 16px 14px !important;
-      border-left-width: 4px !important;
+      padding: 8px !important;
     }
-    body.informe-pdf-capture-mode .informe-pdf-exec-page .bitacora-grid .tl-campo { font-size: 22px !important; margin-bottom: 4px !important; }
+    body.informe-pdf-capture-mode .informe-pdf-exec-page .bitacora-grid .tl-card {
+      padding: 12px 18px 14px !important;
+      border-radius: 10px !important;
+    }
+    body.informe-pdf-capture-mode .informe-pdf-exec-page .bitacora-grid .tl-head { padding-bottom: 6px !important; margin-bottom: 8px !important; }
+    body.informe-pdf-capture-mode .informe-pdf-exec-page .bitacora-grid .tl-campo { font-size: 22px !important; }
+    body.informe-pdf-capture-mode .informe-pdf-exec-page .bitacora-grid .tl-badge { font-size: 16px !important; }
     body.informe-pdf-capture-mode .informe-pdf-exec-page .bitacora-grid .tl-fecha { margin-top: 9px !important; }
     body.informe-pdf-capture-mode .informe-pdf-exec-page .bitacora-grid .tl-fecha-lbl { font-size: 20px !important; }
     body.informe-pdf-capture-mode .informe-pdf-exec-page .bitacora-grid .tl-fecha .tl-line { padding-left: 14px !important; }

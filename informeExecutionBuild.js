@@ -75,20 +75,24 @@ export function buildBitacoraHtml(groups) {
         return '<div class="bitacora-empty">Sin partes registrados en el período.</div>';
     }
 
-    /* Cada CAMPO es una tarjeta, con sus fechas adentro (compacto). Para que no
-       quede una columna vertical gigante, las tarjetas se distribuyen en columnas
-       (1 / 2 / 3 según cantidad). Se usa una <table> porque es lo que el motor de
-       captura del PDF (html2canvas) renderiza de forma confiable. */
-    const cols = groups.length <= 3 ? 1 : groups.length <= 8 ? 2 : 3;
+    /* Cada CAMPO es una tarjeta (header verde + badge "N fechas" + fechas en azul),
+       distribuidas en 2 columnas. Se usa una <table> como contenedor porque es lo que
+       el motor de captura del PDF (html2canvas) renderiza de forma confiable; la tarjeta
+       va en un <div> interno para que tome el alto de su contenido. */
+    const cols = groups.length <= 2 ? 1 : 2;
 
     const cells = groups.map((g) => {
+        const n = g.fechas.length;
+        const badge = `${n} ${n === 1 ? 'fecha' : 'fechas'}`;
         const fechasHtml = g.fechas
             .map((f) => {
                 const items = f.items.map((it) => `<div class="tl-line">· ${esc(it)}</div>`).join('');
                 return `<div class="tl-fecha"><div class="tl-fecha-lbl">${esc(fmtFecha(f.fecha))}</div>${items}</div>`;
             })
             .join('');
-        return `<td class="tl-cell"><b class="tl-campo">${esc(g.campo)}</b>${fechasHtml}</td>`;
+        return `<td class="tl-cell"><div class="tl-card">`
+            + `<div class="tl-head"><span class="tl-campo">${esc(g.campo)}</span><span class="tl-badge">${esc(badge)}</span></div>`
+            + `${fechasHtml}</div></td>`;
     });
     while (cells.length % cols !== 0) cells.push('<td class="tl-cell tl-empty"></td>');
 
