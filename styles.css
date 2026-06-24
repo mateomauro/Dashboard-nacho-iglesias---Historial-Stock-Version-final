@@ -2465,6 +2465,26 @@ body.fullscreen-active {
     .kpi-value {
         font-size: 2rem;
     }
+
+    /* Switcher de vistas en grilla 2x2: evita el desborde y que las pestañas
+       (sobre todo "Base de Datos") se corten contra el borde en celular. */
+    .view-switcher-container {
+        margin-bottom: var(--space-md);
+    }
+
+    .view-switcher {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 4px;
+        width: 100%;
+    }
+
+    .view-tab {
+        justify-content: center;
+        padding: 11px 8px;
+        font-size: 0.8125rem;
+        white-space: nowrap;
+    }
 }
 
 /* Prefers reduced motion */
