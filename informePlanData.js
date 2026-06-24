@@ -118,6 +118,13 @@ export async function loadPlanContext(sheets, fecha1ISO, fecha2ISO) {
         largo: MESES_LARGO[idx],
     }));
 
+    /* "Mes siguiente": el mes posterior al último del período. Se muestra en la
+       matriz programada (visibilidad) pero NO se evalúa como vencido — no entra a
+       compareExecutionVsPlan, que itera solo `meses`. */
+    const lastIdx = mesesIdx[mesesIdx.length - 1];
+    const nextIdx = (lastIdx + 1) % 12;
+    const mesSiguiente = { idx: nextIdx, abbr: MESES_ABBR[nextIdx], largo: MESES_LARGO[nextIdx] };
+
     const [manejoRows, sanitarioRows] = await Promise.all([
         readPlanSheet(sheets, 'manejo'),
         readPlanSheet(sheets, 'sanitario'),
@@ -125,6 +132,9 @@ export async function loadPlanContext(sheets, fecha1ISO, fecha2ISO) {
 
     return {
         meses,
+        mesSiguiente,
+        fecha1: fecha1ISO,
+        fecha2: fecha2ISO,
         manejo: parsePlanSheet(manejoRows),
         sanitario: parsePlanSheet(sanitarioRows),
     };

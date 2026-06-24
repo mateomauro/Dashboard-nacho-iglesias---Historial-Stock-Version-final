@@ -66,6 +66,83 @@ export function buildCompareTableHtml(rows, actividadHeader = 'Actividad program
     </table>`;
 }
 
+const MES_ABBR3 = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
+/** Separador de miles estilo es-AR: 1644 → "1.644". */
+function fmtMiles(n) {
+    return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+/** "Realizado / detalle": "Campo (n), Campo (n)… Total X". */
+function fmtRealizado(r) {
+    const campos = (r.detalle && r.detalle !== '—') ? r.detalle.replace(/;\s*/g, ', ') : '';
+    const total = r.cabezas ? `${campos ? '. ' : ''}Total ${fmtMiles(r.cabezas)}` : '';
+    return (campos + total) || '—';
+}
+
+/** "TACTO - BOQUEO" → "Tacto - boqueo" (el plan viene en mayúsculas). */
+function sentenceCase(s) {
+    const t = String(s || '').trim().toLowerCase();
+    return t ? t.charAt(0).toUpperCase() + t.slice(1) : '';
+}
+
+/**
+ * Sección "Ejecución del período": parte las filas de compareExecutionVsPlan en
+ * 3 tablas — Cumplido, Extra y Pendiente (faltantes agrupados por mes+categoría).
+ * @param {Array} rows  filas de compareExecutionVsPlan (un tipo)
+ * @param {string} actLabel  'Actividad' (manejo) o 'Tratamiento' (sanitario)
+ */
+export function buildCompareSectionHtml(rows, actLabel = 'Actividad') {
+    if (!rows || rows.length === 0) {
+        return '<div class="exec-empty">Sin actividades planificadas ni registradas para el período.</div>';
+    }
+    const cumplido = rows.filter((r) => r.estado === 'Cumplido');
+    const extra = rows.filter((r) => r.estado === 'Extra');
+    const pendiente = rows.filter((r) => r.estado === 'Pendiente');
+
+    const tablaHechas = (list, cls) => `<table class="compare-table compare-table--compact exec-state-table ${cls}">
+        <thead><tr><th class="es-mes">Mes</th><th class="es-cat">Categoria</th><th>${esc(actLabel)}</th><th>Realizado / detalle</th></tr></thead>
+        <tbody>${list.map((r) => `<tr>
+            <td class="es-mes">${esc(MES_ABBR3[r.mesIdx] || r.mes)}</td>
+            <td class="es-cat">${esc(r.categoria)}</td>
+            <td>${esc(sentenceCase(r.actividad))}</td>
+            <td>${esc(fmtRealizado(r))}</td>
+        </tr>`).join('')}</tbody>
+    </table>`;
+
+    /* Pendiente: lectura compacta — UNA fila por MES; las categorías van dentro de
+       la celda, en negrita: "Vacas: a; b. Vaquillonas: c. Recria: d". */
+    const pendByMes = new Map();
+    for (const r of pendiente) {
+        if (!pendByMes.has(r.mesIdx)) pendByMes.set(r.mesIdx, new Map());
+        const cats = pendByMes.get(r.mesIdx);
+        if (!cats.has(r.categoria)) cats.set(r.categoria, []);
+        cats.get(r.categoria).push(sentenceCase(r.actividad));
+    }
+    const tablaPend = `<table class="compare-table compare-table--compact exec-state-table es-pte">
+        <thead><tr><th class="es-mescat">Mes / categoria</th><th>Faltante</th></tr></thead>
+        <tbody>${[...pendByMes.keys()].sort((a, b) => a - b).map((mesIdx) => {
+            const cats = pendByMes.get(mesIdx);
+            const txt = [...cats.entries()]
+                .map(([cat, acts]) => `<b>${esc(cat)}:</b> ${esc(acts.join('; '))}`)
+                .join('. ');
+            return `<tr><td class="es-mescat">${esc(MES_ABBR3[mesIdx] || '')}</td><td>${txt}</td></tr>`;
+        }).join('')}</tbody>
+    </table>`;
+
+    let out = '<div class="compare-section-title exec-period">Ejecución del período</div>';
+    if (cumplido.length) {
+        out += '<div class="exec-state-head"><span class="badge badge-green">OK</span><span class="esh-label">Cumplido</span></div>' + tablaHechas(cumplido, 'es-ok');
+    }
+    if (extra.length) {
+        out += '<div class="exec-state-head"><span class="badge badge-blue">EXTRA</span><span class="esh-label">Extra no planificado</span></div>' + tablaHechas(extra, 'es-extra');
+    }
+    if (pendiente.length) {
+        out += '<div class="exec-state-head"><span class="badge badge-amber">PTE</span><span class="esh-label">Pendiente — lectura compacta de faltantes</span></div>' + tablaPend;
+    }
+    return out;
+}
+
 /**
  * Bitácora operativa (s05c): lista de mensajes agrupados por fecha+campo.
  * @param {Array} groups  salida de buildBitacoraFromExecution
@@ -92,7 +169,7 @@ export function buildBitacoraHtml(groups) {
             .join('');
         return `<td class="tl-cell"><div class="tl-card">`
             + `<div class="tl-head"><span class="tl-campo">${esc(g.campo)}</span><span class="tl-badge">${esc(badge)}</span></div>`
-            + `${fechasHtml}</div></td>`;
+            + `<div class="tl-body">${fechasHtml}</div></div></td>`;
     });
     while (cells.length % cols !== 0) cells.push('<td class="tl-cell tl-empty"></td>');
 

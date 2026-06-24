@@ -432,11 +432,11 @@ function titleCaseCat(s) {
  * actividades como chips). Va arriba de la comparación Programado vs Real.
  * Pedido de Ignacio: "un mini recuadro con lo programado y la comparación abajo".
  */
-export function buildPlanMiniHtml(categorias, meses) {
+export function buildPlanMiniHtml(categorias, meses, opts = {}) {
     if (!categorias || categorias.length === 0 || !meses || meses.length === 0) {
         return '<div class="plan-mini"><div class="plan-mini-empty">Sin plan programado para el período.</div></div>';
     }
-    const head = meses.map((m) => `<th>${esc(m.largo)}</th>`).join('');
+    const head = meses.map((m) => `<th>${esc(m.abbr || m.largo)}</th>`).join('');
     const rows = categorias
         .map((cat) => {
             const cells = meses
@@ -450,7 +450,11 @@ export function buildPlanMiniHtml(categorias, meses) {
             return `<tr><th class="pm-cat">${esc(titleCaseCat(cat.categoria))}</th>${cells}</tr>`;
         })
         .join('');
+    const header = (opts.title || opts.note)
+        ? `<div class="plan-mini-head"><span class="plan-mini-title">${esc(opts.title || '')}</span>${opts.note ? `<span class="plan-mini-note">${esc(opts.note)}</span>` : ''}</div>`
+        : '';
     return `<div class="plan-mini">
+        ${header}
         <table class="plan-mini-table" aria-label="Plan programado por categoría y mes">
             <thead><tr><th class="pm-corner"></th>${head}</tr></thead>
             <tbody>${rows}</tbody>

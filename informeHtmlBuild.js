@@ -27,6 +27,7 @@ import {
 } from './informeMovementsBuild.js';
 import {
     buildCompareTableHtml,
+    buildCompareSectionHtml,
     buildBitacoraHtml,
     buildNarrativaHtml,
 } from './informeExecutionBuild.js';
@@ -433,22 +434,42 @@ export function applyExecutionToDocument(doc, movements) {
     const bitacora = movements.bitacora || [];
     const execution = movements.execution || [];
     const plan = movements.plan;
+    const fmtDMY = (iso) => {
+        const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+        return m ? `${m[3]}/${m[2]}/${m[1]}` : String(iso || '');
+    };
 
-    /* Mini recuadro del plan programado (arriba de cada comparación) */
+    /* Mini recuadro del plan programado (arriba de cada comparación). Incluye el
+       "mes siguiente" en la matriz (visibilidad), con título + nota; y el período
+       en el encabezado de la sección. */
     if (plan) {
+        const mesesMatriz = plan.mesSiguiente ? [...plan.meses, plan.mesSiguiente] : plan.meses;
+        const anio = (plan.fecha2 || '').slice(0, 4);
+        const primerMes = plan.meses[0]?.largo || '';
+        const ultimoMes = (plan.mesSiguiente || plan.meses[plan.meses.length - 1])?.largo || '';
+        const tituloPlan = `Programado según plan - ${primerMes} a ${ultimoMes} ${anio}`.trim();
+        const notaPlan = plan.mesSiguiente
+            ? `${plan.mesSiguiente.largo} se muestra como mes siguiente; no se evalúa como vencido`
+            : '';
+
         const pMan = doc.querySelector('[data-plan-mini="manejo"]');
-        if (pMan) pMan.innerHTML = buildPlanMiniHtml(plan.manejo, plan.meses);
+        if (pMan) pMan.innerHTML = buildPlanMiniHtml(plan.manejo, mesesMatriz, { title: tituloPlan, note: notaPlan });
         const pSan = doc.querySelector('[data-plan-mini="sanitario"]');
-        if (pSan) pSan.innerHTML = buildPlanMiniHtml(plan.sanitario, plan.meses);
+        if (pSan) pSan.innerHTML = buildPlanMiniHtml(plan.sanitario, mesesMatriz, { title: tituloPlan, note: notaPlan });
+
+        const periodoTxt = (plan.fecha1 && plan.fecha2)
+            ? `Período: ${fmtDMY(plan.fecha1)} a ${fmtDMY(plan.fecha2)}${plan.mesSiguiente ? ` | Próximo mes: ${plan.mesSiguiente.largo.toLowerCase()}` : ''}`
+            : '';
+        doc.querySelectorAll('[data-exec-periodo]').forEach((el) => { el.textContent = periodoTxt; });
     }
 
-    /* s05b - Programado vs Real (Manejo) */
+    /* s05b - Programado vs Real (Manejo): matriz + 3 tablas (Cumplido/Extra/Pendiente) */
     const cMan = doc.querySelector('[data-exec-compare="manejo"]');
-    if (cMan) cMan.innerHTML = buildCompareTableHtml(comparison.manejo, 'Actividad programada');
+    if (cMan) cMan.innerHTML = buildCompareSectionHtml(comparison.manejo, 'Actividad');
 
     /* s05c - Programado vs Real (Sanitario) */
     const cSan = doc.querySelector('[data-exec-compare="sanitario"]');
-    if (cSan) cSan.innerHTML = buildCompareTableHtml(comparison.sanitario, 'Tratamiento programado');
+    if (cSan) cSan.innerHTML = buildCompareSectionHtml(comparison.sanitario, 'Actividad');
 
     /* s05d - Narrativa (resumen del período) */
     const nar = doc.querySelector('[data-exec-narrativa]');
